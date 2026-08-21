@@ -22,3 +22,9 @@ Build the extension, then load `apps/chrome-extension/dist` as an unpacked exten
 ```bash
 pnpm --filter @yomeets/chrome-extension build
 ```
+
+## Fake Network Site
+
+```bash
+pnpm --filter @yomeets/fake-site-network dev
+```
