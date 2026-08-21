@@ -9,3 +9,5 @@ export type {
   PageObservation,
   VerificationResult
 } from "./types.js";
+
+export { verifyOutcome } from "./verifier.js";
