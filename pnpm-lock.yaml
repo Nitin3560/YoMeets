@@ -68,6 +68,9 @@ importers:
 
   packages/task-engine:
     dependencies:
+      '@yomeets/model-router':
+        specifier: workspace:*
+        version: link:../model-router
       '@yomeets/storage':
         specifier: workspace:*
         version: link:../storage
