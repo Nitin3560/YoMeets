@@ -1,8 +1,45 @@
-import type {
-  PageElement,
-  PageElementRole,
-  PageObservation
-} from "@yomeets/browser-core";
+type PageElementRole =
+  | "button"
+  | "checkbox"
+  | "dialog"
+  | "heading"
+  | "link"
+  | "main"
+  | "radio"
+  | "search"
+  | "section"
+  | "select"
+  | "status"
+  | "textbox"
+  | "unknown";
+
+type PageElement = {
+  ref: string;
+  role: PageElementRole;
+  name: string;
+  enabled: boolean;
+  visible: boolean;
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+};
+
+type PageObservation = {
+  url: string;
+  title: string;
+  pageVersion: number;
+  observedAt: string;
+  elements: PageElement[];
+};
+
+type ObserverGlobal = typeof globalThis & {
+  __yomeetsObservePage?: () => PageObservation;
+  __yomeetsPageVersion?: number;
+  __yomeetsMutationObserver?: MutationObserver;
+};
 
 const selector = [
   "a",
@@ -20,17 +57,21 @@ const selector = [
   "[role]"
 ].join(",");
 
-let pageVersion = 1;
+const observerGlobal = globalThis as ObserverGlobal;
 
-const observer = new MutationObserver(() => {
-  pageVersion += 1;
-});
+observerGlobal.__yomeetsPageVersion ??= 1;
 
-observer.observe(document.documentElement, {
-  attributes: true,
-  childList: true,
-  subtree: true
-});
+if (!observerGlobal.__yomeetsMutationObserver) {
+  observerGlobal.__yomeetsMutationObserver = new MutationObserver(() => {
+    observerGlobal.__yomeetsPageVersion = (observerGlobal.__yomeetsPageVersion ?? 1) + 1;
+  });
+
+  observerGlobal.__yomeetsMutationObserver.observe(document.documentElement, {
+    attributes: true,
+    childList: true,
+    subtree: true
+  });
+}
 
 function getRole(element: Element): PageElementRole {
   const explicitRole = element.getAttribute("role");
@@ -129,7 +170,7 @@ function isEnabled(element: Element) {
     element instanceof HTMLTextAreaElement) || !element.disabled;
 }
 
-export function observePage(): PageObservation {
+function observePage(): PageObservation {
   const elements: PageElement[] = [];
 
   for (const [index, element] of [...document.querySelectorAll(selector)].entries()) {
@@ -158,8 +199,10 @@ export function observePage(): PageObservation {
   return {
     elements,
     observedAt: new Date().toISOString(),
-    pageVersion,
+    pageVersion: observerGlobal.__yomeetsPageVersion ?? 1,
     title: document.title,
     url: window.location.href
   };
 }
+
+observerGlobal.__yomeetsObservePage = observePage;

@@ -1,12 +1,18 @@
+import type {
+  ExtensionRequest,
+  ExtensionResponse,
+  ObservePageResult
+} from "@yomeets/protocol";
+
 type RuntimeMessage = {
   type: "PING_LOCAL_API";
-};
+} | ExtensionRequest;
 
-type MessageResponse = {
+type MessageResponse = ({
   ok: boolean;
   status?: string;
   error?: string;
-};
+}) | ExtensionResponse;
 
 declare const chrome: {
   runtime: {
@@ -22,6 +28,22 @@ declare const chrome: {
         ) => boolean | void
       ): void;
     };
+  };
+  scripting: {
+    executeScript(
+      details:
+        | {
+          target: { tabId: number };
+          files: string[];
+        }
+        | {
+          target: { tabId: number };
+          func: () => unknown;
+        }
+    ): Promise<Array<{ result?: unknown }>>;
+  };
+  tabs: {
+    query(queryInfo: { active: boolean; currentWindow: boolean }): Promise<Array<{ id?: number }>>;
   };
 };
 
@@ -46,15 +68,80 @@ async function pingLocalApi(): Promise<MessageResponse> {
   }
 }
 
+function errorResult(requestId: string, code: string, message: string): ObservePageResult {
+  return {
+    error: {
+      code,
+      message
+    },
+    requestId,
+    type: "OBSERVE_PAGE_RESULT"
+  };
+}
+
+async function getTargetTabId(tabId?: number) {
+  if (typeof tabId === "number") {
+    return tabId;
+  }
+
+  const [activeTab] = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  });
+
+  return activeTab?.id;
+}
+
+async function observeTab(message: Extract<RuntimeMessage, { type: "OBSERVE_PAGE" }>): Promise<ObservePageResult> {
+  const tabId = await getTargetTabId(message.tabId);
+
+  if (typeof tabId !== "number") {
+    return errorResult(message.requestId, "NO_ACTIVE_TAB", "No active tab is available");
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      files: ["observer.js"],
+      target: { tabId }
+    });
+
+    const [result] = await chrome.scripting.executeScript({
+      func: () => {
+        const observerGlobal = globalThis as typeof globalThis & {
+          __yomeetsObservePage?: () => unknown;
+        };
+
+        return observerGlobal.__yomeetsObservePage?.();
+      },
+      target: { tabId }
+    });
+
+    return {
+      observation: result?.result as ObservePageResult["observation"],
+      requestId: message.requestId,
+      type: "OBSERVE_PAGE_RESULT"
+    };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    return errorResult(message.requestId, "OBSERVE_FAILED", errorMessage);
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   void pingLocalApi();
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type !== "PING_LOCAL_API") {
-    return false;
+  if (message.type === "PING_LOCAL_API") {
+    void pingLocalApi().then(sendResponse);
+    return true;
   }
 
-  void pingLocalApi().then(sendResponse);
-  return true;
+  if (message.type === "OBSERVE_PAGE") {
+    void observeTab(message).then(sendResponse);
+    return true;
+  }
+
+  return false;
 });

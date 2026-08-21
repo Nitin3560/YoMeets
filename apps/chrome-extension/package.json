@@ -3,14 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -b && cp manifest.json dist/manifest.json",
-    "dev": "mkdir -p dist && cp manifest.json dist/manifest.json && tsc -b --watch",
+    "build": "tsc -b && node scripts/prepare-observer.cjs && cp manifest.json dist/manifest.json",
+    "dev": "tsc -b && node scripts/prepare-observer.cjs && cp manifest.json dist/manifest.json && tsc -b --watch --preserveWatchOutput",
     "lint": "tsc -b --pretty false",
     "test": "tsc -b --pretty false",
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@yomeets/browser-core": "workspace:*",
     "@yomeets/protocol": "workspace:*",
     "@yomeets/shared": "workspace:*"
   }
