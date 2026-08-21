@@ -3,7 +3,9 @@ import { randomUUID } from "node:crypto";
 import { stdout } from "node:process";
 import { formatTaskChecklist, previewScenario } from "@yomeets/agent-core";
 import { ScriptedModelProvider } from "@yomeets/model-router";
+import { createApprovalRequest } from "@yomeets/policy-engine";
 import { normalizeTranscript } from "@yomeets/task-engine";
+import { promptForApproval } from "./approval.js";
 
 const host = "127.0.0.1";
 const port = 47821;
@@ -181,6 +183,24 @@ async function previewTask(args: string[]) {
   stdout.write(`${preview.command}\n${formatTaskChecklist(preview.trace)}\n`);
 }
 
+async function approveTask(args: string[]) {
+  const [taskId, ...labelParts] = args;
+  const label = labelParts.join(" ").trim();
+
+  if (!taskId || !label) {
+    throw new Error("approve requires a task id and action label");
+  }
+
+  const request = createApprovalRequest(`approval_${taskId}`, taskId, {
+    prompt: `Approve external action: ${label}?`,
+    riskLevel: "external_side_effect",
+    status: "approval_required"
+  });
+  const decided = await promptForApproval(request);
+
+  stdout.write(`${decided.id}: ${decided.status}\n`);
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
 
@@ -204,7 +224,12 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n");
+  if (command === "approve") {
+    await approveTask(args);
+    return;
+  }
+
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()

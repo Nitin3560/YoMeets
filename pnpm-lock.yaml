@@ -32,6 +32,9 @@ importers:
       '@yomeets/model-router':
         specifier: workspace:*
         version: link:../../packages/model-router
+      '@yomeets/policy-engine':
+        specifier: workspace:*
+        version: link:../../packages/policy-engine
       '@yomeets/shared':
         specifier: workspace:*
         version: link:../../packages/shared
