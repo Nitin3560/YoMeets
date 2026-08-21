@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./apps/chrome-extension" },
+    { "path": "./apps/desktop" },
+    { "path": "./packages/agent-core" },
+    { "path": "./packages/browser-core" },
+    { "path": "./packages/model-router" },
+    { "path": "./packages/policy-engine" },
+    { "path": "./packages/protocol" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/storage" },
+    { "path": "./packages/task-engine" }
+  ]
+}
