@@ -2,7 +2,7 @@
   "files": [],
   "references": [
     { "path": "./apps/chrome-extension" },
-    { "path": "./apps/desktop" },
+    { "path": "./apps/cli" },
     { "path": "./packages/agent-core" },
     { "path": "./packages/browser-core" },
     { "path": "./packages/model-router" },

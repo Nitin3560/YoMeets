@@ -24,7 +24,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
 
-  apps/desktop:
+  apps/cli:
     dependencies:
       '@yomeets/shared':
         specifier: workspace:*

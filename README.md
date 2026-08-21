@@ -12,5 +12,5 @@ Local-first meeting automation system.
 ## Local Runner
 
 ```bash
-pnpm --filter @yomeets/desktop dev
+pnpm --filter @yomeets/cli dev
 ```

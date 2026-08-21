@@ -1,5 +1,5 @@
 {
-  "name": "@yomeets/desktop",
+  "name": "@yomeets/cli",
   "private": true,
   "type": "module",
   "bin": {
