@@ -1,6 +1,6 @@
 # YoMeets
 
-Physical AI browser workspace.
+Local-first meeting automation system.
 
 ## Scripts
 
@@ -8,3 +8,9 @@ Physical AI browser workspace.
 - `pnpm test`
 - `pnpm lint`
 - `pnpm typecheck`
+
+## Local Runner
+
+```bash
+pnpm --filter @yomeets/desktop dev
+```

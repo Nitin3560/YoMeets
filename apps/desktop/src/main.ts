@@ -1,45 +1,33 @@
-import { app, BrowserWindow } from "electron";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { createInterface } from "node:readline/promises";
+import { stdin, stdout } from "node:process";
 
-const dirname = fileURLToPath(new URL(".", import.meta.url));
-const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+const localApiUrl = "http://127.0.0.1:47821";
 
-function createWindow() {
-  const window = new BrowserWindow({
-    backgroundColor: "#f7f4ee",
-    height: 760,
-    minHeight: 640,
-    minWidth: 960,
-    title: "YoMeets",
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true
-    },
-    width: 1120
-  });
+const terminal = createInterface({
+  input: stdin,
+  output: stdout
+});
 
-  if (devServerUrl) {
-    void window.loadURL(devServerUrl);
+async function main() {
+  stdout.write(`YoMeets local runner\nAPI: ${localApiUrl}\n\n`);
+
+  const command = await terminal.question("Task> ");
+  const trimmedCommand = command.trim();
+
+  if (!trimmedCommand) {
+    stdout.write("No task entered.\n");
     return;
   }
 
-  void window.loadFile(join(dirname, "../renderer/index.html"));
+  stdout.write(`Queued locally: ${trimmedCommand}\n`);
 }
 
-app.whenReady().then(() => {
-  createWindow();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+main()
+  .catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    stdout.write(`Failed: ${message}\n`);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    terminal.close();
   });
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
