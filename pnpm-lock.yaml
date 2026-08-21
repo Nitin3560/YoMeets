@@ -66,7 +66,14 @@ importers:
         specifier: ^0.31.10
         version: 0.31.10
 
-  packages/task-engine: {}
+  packages/task-engine:
+    dependencies:
+      '@yomeets/storage':
+        specifier: workspace:*
+        version: link:../storage
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
 
   tests/fake-sites/network:
     devDependencies:
@@ -724,6 +731,9 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
 snapshots:
 
   '@drizzle-team/brocli@0.10.2': {}
@@ -1123,3 +1133,5 @@ snapshots:
   typescript@5.9.3: {}
 
   undici-types@7.18.2: {}
+
+  zod@4.4.3: {}
