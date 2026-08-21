@@ -1,4 +1,8 @@
-import type { PageObservation } from "@yomeets/browser-core";
+import type {
+  ActionResult,
+  BrowserAction,
+  PageObservation
+} from "@yomeets/browser-core";
 
 export type ProtocolError = {
   code: string;
@@ -18,6 +22,19 @@ export type ObservePageResult = {
   error?: ProtocolError;
 };
 
-export type ExtensionRequest = ObservePageRequest;
+export type ExecuteActionRequest = {
+  type: "EXECUTE_ACTION";
+  requestId: string;
+  tabId?: number;
+  action: BrowserAction;
+};
 
-export type ExtensionResponse = ObservePageResult;
+export type ExecuteActionResult = {
+  type: "ACTION_RESULT";
+  requestId: string;
+  result: ActionResult;
+};
+
+export type ExtensionRequest = ObservePageRequest | ExecuteActionRequest;
+
+export type ExtensionResponse = ObservePageResult | ExecuteActionResult;

@@ -1,5 +1,8 @@
 export type {
   ElementBounds,
+  ActionResult,
+  ActionStatus,
+  BrowserAction,
   PageElement,
   PageElementRole,
   PageObservation

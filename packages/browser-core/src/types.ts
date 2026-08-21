@@ -41,3 +41,43 @@ export type PageObservation = {
   observedAt: string;
   elements: PageElement[];
 };
+
+export type BrowserAction =
+  | {
+    type: "click";
+    ref: string;
+    pageVersion: number;
+  }
+  | {
+    type: "type";
+    ref: string;
+    text: string;
+    pageVersion: number;
+  }
+  | {
+    type: "press";
+    key: string;
+    ref?: string;
+    pageVersion: number;
+  }
+  | {
+    type: "scroll";
+    deltaX?: number;
+    deltaY: number;
+    pageVersion: number;
+  }
+  | {
+    type: "navigate";
+    url: string;
+  };
+
+export type ActionStatus = "completed" | "failed";
+
+export type ActionResult = {
+  status: ActionStatus;
+  pageVersion?: number;
+  error?: {
+    code: string;
+    message: string;
+  };
+};
