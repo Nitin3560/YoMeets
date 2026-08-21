@@ -10,6 +10,7 @@
   "references": [
     { "path": "../../packages/agent-core" },
     { "path": "../../packages/model-router" },
-    { "path": "../../packages/shared" }
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/task-engine" }
   ]
 }

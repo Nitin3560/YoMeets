@@ -15,7 +15,8 @@
   "dependencies": {
     "@yomeets/agent-core": "workspace:*",
     "@yomeets/model-router": "workspace:*",
-    "@yomeets/shared": "workspace:*"
+    "@yomeets/shared": "workspace:*",
+    "@yomeets/task-engine": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.3.0"

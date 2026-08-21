@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { stdout } from "node:process";
 import { formatTaskChecklist, previewScenario } from "@yomeets/agent-core";
 import { ScriptedModelProvider } from "@yomeets/model-router";
+import { normalizeTranscript } from "@yomeets/task-engine";
 
 const host = "127.0.0.1";
 const port = 47821;
@@ -28,17 +29,17 @@ function sendJson(response: ServerResponse, statusCode: number, body: unknown) {
 }
 
 async function readJson(request: IncomingMessage) {
-  const chunks: Buffer[] = [];
+  let text = "";
 
   for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    text += Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk);
   }
 
-  if (chunks.length === 0) {
+  if (!text) {
     return {};
   }
 
-  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+  return JSON.parse(text) as unknown;
 }
 
 function createTask(command: string): Task {
@@ -51,6 +52,22 @@ function createTask(command: string): Task {
 
   tasks.set(task.id, task);
   return task;
+}
+
+function commandFromRequestBody(body: unknown) {
+  if (typeof body !== "object" || !body) {
+    return undefined;
+  }
+
+  if ("command" in body && typeof body.command === "string") {
+    return body.command.trim();
+  }
+
+  if ("transcript" in body && typeof body.transcript === "string") {
+    return normalizeTranscript({ text: body.transcript }).command;
+  }
+
+  return undefined;
 }
 
 async function handleRequest(request: IncomingMessage, response: ServerResponse) {
@@ -74,14 +91,14 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
 
   if (method === "POST" && url.pathname === "/v1/tasks") {
     const body = await readJson(request);
-    const command = typeof body === "object" && body && "command" in body ? body.command : undefined;
+    const command = commandFromRequestBody(body);
 
-    if (typeof command !== "string" || command.trim().length === 0) {
-      sendJson(response, 400, { error: "command is required" });
+    if (!command) {
+      sendJson(response, 400, { error: "command or transcript is required" });
       return;
     }
 
-    sendJson(response, 202, { task: createTask(command.trim()) });
+    sendJson(response, 202, { task: createTask(command) });
     return;
   }
 
@@ -115,6 +132,23 @@ async function submitTask(command: string) {
   }
 
   stdout.write(`Queued ${body.task.id}: ${body.task.command}\n`);
+}
+
+async function submitTranscript(text: string) {
+  const transcript = normalizeTranscript({ text });
+  const response = await fetch(`${localApiUrl}/v1/tasks`, {
+    body: JSON.stringify({ transcript: transcript.rawText }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST"
+  });
+
+  const body = await response.json() as { task?: Task; error?: string };
+
+  if (!response.ok || !body.task) {
+    throw new Error(body.error ?? `Request failed with ${response.status}`);
+  }
+
+  stdout.write(`Queued transcript ${body.task.id}: ${body.task.command}\n`);
 }
 
 function readPreviewArgs(args: string[]) {
@@ -160,12 +194,17 @@ async function main() {
     return;
   }
 
+  if (command === "transcript" && args.join(" ").trim()) {
+    await submitTranscript(args.join(" ").trim());
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n");
 }
 
 main()
