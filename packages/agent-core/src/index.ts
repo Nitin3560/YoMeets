@@ -1,6 +1,7 @@
 import { evaluatePolicy, type PolicyAction, type PolicyDecision } from "@yomeets/policy-engine";
 export { buildTaskChecklist, formatTaskChecklist, type ChecklistItem } from "./checklist.js";
 export { classifyActionResult, classifyFailure, type ClassifiedFailure, type FailureClass } from "./failures.js";
+export { createLoopSample, detectLoop, type LoopDecision, type LoopSample } from "./loop.js";
 export { previewScenario, type ScenarioPreview } from "./scenario.js";
 export { decideRetry, type RetryDecision } from "./retry.js";
 export { buildTaskTrace, type TaskTraceEvent } from "./trace.js";
