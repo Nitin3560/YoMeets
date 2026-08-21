@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Network Profile</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <a href="/">Back to search</a>
+      <section aria-label="Profile" id="profile"></section>
+    </main>
+    <dialog id="note-dialog">
+      <form method="dialog" id="note-form">
+        <h2>Add a note</h2>
+        <label>
+          Note
+          <textarea name="note" placeholder="Hello John."></textarea>
+        </label>
+        <label class="inline">
+          <input type="checkbox" name="forceError" />
+          Force send error
+        </label>
+        <menu>
+          <button value="cancel">Cancel</button>
+          <button value="send">Send</button>
+        </menu>
+      </form>
+    </dialog>
+    <script type="module" src="/profile.js"></script>
+  </body>
+</html>

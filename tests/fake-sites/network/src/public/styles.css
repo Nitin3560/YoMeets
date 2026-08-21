@@ -25,12 +25,19 @@ label {
 }
 
 input,
+textarea,
 button {
   border: 1px solid #b9b1a4;
   border-radius: 6px;
   font: inherit;
   min-height: 40px;
   padding: 0 10px;
+}
+
+textarea {
+  min-height: 96px;
+  padding: 10px;
+  resize: vertical;
 }
 
 button {
@@ -65,4 +72,47 @@ button {
 
 .results-list small {
   color: #6d6258;
+}
+
+dl {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: max-content 1fr;
+}
+
+dt {
+  font-weight: 700;
+}
+
+dd {
+  margin: 0;
+}
+
+dialog {
+  border: 1px solid #cfc6b8;
+  border-radius: 8px;
+  max-width: 420px;
+  width: calc(100% - 32px);
+}
+
+dialog form {
+  max-width: none;
+}
+
+menu {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+}
+
+.inline {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.inline input {
+  min-height: auto;
 }
