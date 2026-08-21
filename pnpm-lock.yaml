@@ -50,6 +50,12 @@ importers:
 
   packages/task-engine: {}
 
+  tests/fake-sites/network:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
+
 packages:
 
   '@turbo/darwin-64@2.10.11':

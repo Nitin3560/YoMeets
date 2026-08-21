@@ -1,0 +1,15 @@
+{
+  "name": "@yomeets/fake-site-network",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b && mkdir -p dist/public && cp -R src/public/. dist/public/",
+    "dev": "pnpm build && node dist/server.js",
+    "lint": "tsc -b --pretty false",
+    "test": "tsc -b --pretty false",
+    "typecheck": "tsc -b"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0"
+  }
+}
