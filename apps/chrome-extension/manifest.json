@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "YoMeets Local Bridge",
+  "version": "0.1.0",
+  "description": "Local browser bridge for YoMeets.",
+  "action": {
+    "default_title": "YoMeets"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "host_permissions": [
+    "http://127.0.0.1:47821/*"
+  ],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs"
+  ]
+}

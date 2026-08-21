@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -b",
-    "dev": "tsc -b --watch",
+    "build": "tsc -b && cp manifest.json dist/manifest.json",
+    "dev": "mkdir -p dist && cp manifest.json dist/manifest.json && tsc -b --watch",
     "lint": "tsc -b --pretty false",
     "test": "tsc -b --pretty false",
     "typecheck": "tsc -b"
