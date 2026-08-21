@@ -16,3 +16,8 @@ export {
   type TaskPlanStep,
   type TaskPlanStepType
 } from "./planner.js";
+export {
+  normalizeTranscript,
+  type NormalizedTranscript,
+  type TranscriptInput
+} from "./transcript.js";
