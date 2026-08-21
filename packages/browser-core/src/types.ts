@@ -81,3 +81,37 @@ export type ActionResult = {
     message: string;
   };
 };
+
+export type ExpectedOutcome =
+  | {
+    type: "urlChanged";
+    fromUrl: string;
+  }
+  | {
+    type: "elementAppears";
+    ref?: string;
+    role?: PageElementRole;
+    name?: string;
+  }
+  | {
+    type: "elementDisappears";
+    ref?: string;
+    role?: PageElementRole;
+    name?: string;
+  }
+  | {
+    type: "textAppears";
+    text: string;
+  }
+  | {
+    type: "stateChange";
+    ref: string;
+    previousName?: string;
+  };
+
+export type VerificationResult = {
+  passed: boolean;
+  checkedAt: string;
+  outcome: ExpectedOutcome;
+  message: string;
+};

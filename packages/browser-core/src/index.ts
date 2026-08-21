@@ -1,9 +1,11 @@
 export type {
-  ElementBounds,
   ActionResult,
   ActionStatus,
   BrowserAction,
+  ElementBounds,
+  ExpectedOutcome,
   PageElement,
   PageElementRole,
-  PageObservation
+  PageObservation,
+  VerificationResult
 } from "./types.js";
