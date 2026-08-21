@@ -10,6 +10,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@yomeets/browser-core": "workspace:*",
     "@yomeets/protocol": "workspace:*",
     "@yomeets/shared": "workspace:*"
   }
