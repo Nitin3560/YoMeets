@@ -10,3 +10,9 @@ export {
   parseTaskIntentWithModel,
   type ParseTaskIntentResult
 } from "./parser.js";
+export {
+  planTaskIntent,
+  type TaskPlanDraft,
+  type TaskPlanStep,
+  type TaskPlanStepType
+} from "./planner.js";
