@@ -45,7 +45,11 @@ importers:
 
   packages/policy-engine: {}
 
-  packages/protocol: {}
+  packages/protocol:
+    dependencies:
+      '@yomeets/browser-core':
+        specifier: workspace:*
+        version: link:../browser-core
 
   packages/shared: {}
 

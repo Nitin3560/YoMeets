@@ -2,11 +2,21 @@
   "name": "@yomeets/protocol",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -b",
     "dev": "tsc -b --watch",
     "lint": "tsc -b --pretty false",
     "test": "tsc -b --pretty false",
     "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@yomeets/browser-core": "workspace:*"
   }
 }
