@@ -1,4 +1,5 @@
 import { evaluatePolicy, type PolicyAction, type PolicyDecision } from "@yomeets/policy-engine";
+export { buildTaskTrace, type TaskTraceEvent } from "./trace.js";
 
 export type AgentStatus =
   | "received"
