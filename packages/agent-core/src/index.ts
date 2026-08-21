@@ -3,6 +3,7 @@ export { buildTaskChecklist, formatTaskChecklist, type ChecklistItem } from "./c
 export { classifyActionResult, classifyFailure, type ClassifiedFailure, type FailureClass } from "./failures.js";
 export { createLoopSample, detectLoop, type LoopDecision, type LoopSample } from "./loop.js";
 export { previewScenario, type ScenarioPreview } from "./scenario.js";
+export { checkpointForFailure, checkpointForLoop, type RecoveryCheckpoint } from "./recovery.js";
 export { decideRetry, type RetryDecision } from "./retry.js";
 export { buildTaskTrace, type TaskTraceEvent } from "./trace.js";
 
