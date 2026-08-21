@@ -2,12 +2,15 @@
   "name": "@yomeets/desktop",
   "private": true,
   "type": "module",
+  "main": "dist/main/main.js",
   "scripts": {
-    "build": "tsc -b",
-    "dev": "tsc -b --watch",
-    "lint": "tsc -b --pretty false",
-    "test": "tsc -b --pretty false",
-    "typecheck": "tsc -b"
+    "build": "pnpm build:main && pnpm build:renderer",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "vite build",
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on tcp:5173 && VITE_DEV_SERVER_URL=http://127.0.0.1:5173 tsc -p tsconfig.main.json && VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron dist/main/main.js\"",
+    "lint": "pnpm typecheck",
+    "test": "pnpm typecheck",
+    "typecheck": "tsc -p tsconfig.main.json --pretty false && svelte-check --tsconfig tsconfig.renderer.json"
   },
   "dependencies": {
     "@yomeets/shared": "workspace:*"
