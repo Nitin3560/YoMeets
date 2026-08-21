@@ -1,4 +1,10 @@
 export type RiskLevel = "read_only" | "reversible" | "external_side_effect" | "high_risk";
+export {
+  createApprovalRequest,
+  decideApproval,
+  type ApprovalAnswer,
+  type ApprovalRequest
+} from "./approvals.js";
 
 export type PolicyDecision =
   | {
