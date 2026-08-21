@@ -42,6 +42,9 @@ importers:
 
   packages/agent-core:
     dependencies:
+      '@yomeets/browser-core':
+        specifier: workspace:*
+        version: link:../browser-core
       '@yomeets/model-router':
         specifier: workspace:*
         version: link:../model-router
