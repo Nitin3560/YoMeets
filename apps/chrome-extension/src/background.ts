@@ -1,4 +1,6 @@
 import type {
+  ExecuteActionRequest,
+  ExecuteActionResult,
   ExtensionRequest,
   ExtensionResponse,
   ObservePageResult
@@ -40,6 +42,11 @@ declare const chrome: {
           target: { tabId: number };
           func: () => unknown;
         }
+        | {
+          target: { tabId: number };
+          func: (arg: unknown) => unknown;
+          args: unknown[];
+        }
     ): Promise<Array<{ result?: unknown }>>;
   };
   tabs: {
@@ -68,7 +75,7 @@ async function pingLocalApi(): Promise<MessageResponse> {
   }
 }
 
-function errorResult(requestId: string, code: string, message: string): ObservePageResult {
+function observeErrorResult(requestId: string, code: string, message: string): ObservePageResult {
   return {
     error: {
       code,
@@ -76,6 +83,20 @@ function errorResult(requestId: string, code: string, message: string): ObserveP
     },
     requestId,
     type: "OBSERVE_PAGE_RESULT"
+  };
+}
+
+function actionErrorResult(requestId: string, code: string, message: string): ExecuteActionResult {
+  return {
+    requestId,
+    result: {
+      error: {
+        code,
+        message
+      },
+      status: "failed"
+    },
+    type: "ACTION_RESULT"
   };
 }
 
@@ -96,7 +117,7 @@ async function observeTab(message: Extract<RuntimeMessage, { type: "OBSERVE_PAGE
   const tabId = await getTargetTabId(message.tabId);
 
   if (typeof tabId !== "number") {
-    return errorResult(message.requestId, "NO_ACTIVE_TAB", "No active tab is available");
+    return observeErrorResult(message.requestId, "NO_ACTIVE_TAB", "No active tab is available");
   }
 
   try {
@@ -124,7 +145,45 @@ async function observeTab(message: Extract<RuntimeMessage, { type: "OBSERVE_PAGE
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    return errorResult(message.requestId, "OBSERVE_FAILED", errorMessage);
+    return observeErrorResult(message.requestId, "OBSERVE_FAILED", errorMessage);
+  }
+}
+
+async function executeAction(message: ExecuteActionRequest): Promise<ExecuteActionResult> {
+  const tabId = await getTargetTabId(message.tabId);
+
+  if (typeof tabId !== "number") {
+    return actionErrorResult(message.requestId, "NO_ACTIVE_TAB", "No active tab is available");
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      files: ["observer.js", "executor.js"],
+      target: { tabId }
+    });
+
+    const [actionResult] = await chrome.scripting.executeScript({
+      args: [message.action],
+      func: (action) => {
+        const executorGlobal = globalThis as typeof globalThis & {
+          __yomeetsExecuteAction?: (action: unknown) => unknown;
+        };
+        const executor = executorGlobal.__yomeetsExecuteAction;
+
+        return executor?.(action);
+      },
+      target: { tabId }
+    });
+
+    return {
+      requestId: message.requestId,
+      result: actionResult?.result as ExecuteActionResult["result"],
+      type: "ACTION_RESULT"
+    };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    return actionErrorResult(message.requestId, "ACTION_FAILED", errorMessage);
   }
 }
 
@@ -140,6 +199,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.type === "OBSERVE_PAGE") {
     void observeTab(message).then(sendResponse);
+    return true;
+  }
+
+  if (message.type === "EXECUTE_ACTION") {
+    void executeAction(message).then(sendResponse);
     return true;
   }
 
