@@ -36,6 +36,7 @@ type PageObservation = {
 };
 
 type ObserverGlobal = typeof globalThis & {
+  __yomeetsActionRefs?: Map<string, Element>;
   __yomeetsObservePage?: () => PageObservation;
   __yomeetsPageVersion?: number;
   __yomeetsMutationObserver?: MutationObserver;
@@ -172,6 +173,7 @@ function isEnabled(element: Element) {
 
 function observePage(): PageObservation {
   const elements: PageElement[] = [];
+  const actionRefs = new Map<string, Element>();
 
   for (const [index, element] of [...document.querySelectorAll(selector)].entries()) {
     const bounds = element.getBoundingClientRect();
@@ -181,6 +183,9 @@ function observePage(): PageObservation {
       continue;
     }
 
+    const ref = `e_${index + 1}`;
+
+    actionRefs.set(ref, element);
     elements.push({
       bounds: {
         height: Math.round(bounds.height),
@@ -190,11 +195,13 @@ function observePage(): PageObservation {
       },
       enabled: isEnabled(element),
       name,
-      ref: `e_${index + 1}`,
+      ref,
       role: getRole(element),
       visible: isVisible(element, bounds)
     });
   }
+
+  observerGlobal.__yomeetsActionRefs = actionRefs;
 
   return {
     elements,
