@@ -1,0 +1,16 @@
+{
+  "name": "@yomeets/chrome-extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "lint": "tsc -b --pretty false",
+    "test": "tsc -b --pretty false",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@yomeets/protocol": "workspace:*",
+    "@yomeets/shared": "workspace:*"
+  }
+}
