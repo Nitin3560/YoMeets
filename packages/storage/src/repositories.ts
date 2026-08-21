@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { Storage } from "./database.js";
-import { actions, auditEvents, tasks } from "./schema.js";
+import { actions, auditEvents, taskPlans, tasks } from "./schema.js";
 
 function now() {
   return new Date().toISOString();
@@ -70,6 +70,40 @@ export class ActionRepository {
       })
       .where(eq(actions.id, id))
       .run();
+  }
+}
+
+export type CreateTaskPlanInput = {
+  taskId: string;
+  plan: unknown;
+};
+
+export class TaskPlanRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateTaskPlanInput) {
+    const latest = this.latestForTask(input.taskId);
+    const plan = {
+      createdAt: now(),
+      id: randomUUID(),
+      planJson: asJson(input.plan),
+      taskId: input.taskId,
+      updatedAt: null,
+      version: (latest?.version ?? 0) + 1
+    };
+
+    this.storage.db.insert(taskPlans).values(plan).run();
+    return plan;
+  }
+
+  latestForTask(taskId: string) {
+    return this.storage.db
+      .select()
+      .from(taskPlans)
+      .where(eq(taskPlans.taskId, taskId))
+      .orderBy(desc(taskPlans.version))
+      .limit(1)
+      .get();
   }
 }
 
