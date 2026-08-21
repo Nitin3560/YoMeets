@@ -6,10 +6,11 @@
     "build": "tsc -b",
     "dev": "tsc -b --watch",
     "lint": "tsc -b --pretty false",
-    "test": "tsc -b --pretty false && node dist/index.test.js && node dist/trace.test.js",
+    "test": "tsc -b --pretty false && node dist/index.test.js && node dist/trace.test.js && node dist/scenario.test.js",
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@yomeets/model-router": "workspace:*",
     "@yomeets/policy-engine": "workspace:*",
     "@yomeets/task-engine": "workspace:*"
   }

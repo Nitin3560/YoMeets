@@ -36,6 +36,9 @@ importers:
 
   packages/agent-core:
     dependencies:
+      '@yomeets/model-router':
+        specifier: workspace:*
+        version: link:../model-router
       '@yomeets/policy-engine':
         specifier: workspace:*
         version: link:../policy-engine
