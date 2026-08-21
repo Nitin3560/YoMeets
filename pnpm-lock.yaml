@@ -26,6 +26,12 @@ importers:
 
   apps/cli:
     dependencies:
+      '@yomeets/agent-core':
+        specifier: workspace:*
+        version: link:../../packages/agent-core
+      '@yomeets/model-router':
+        specifier: workspace:*
+        version: link:../../packages/model-router
       '@yomeets/shared':
         specifier: workspace:*
         version: link:../../packages/shared

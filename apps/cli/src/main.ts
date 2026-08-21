@@ -1,6 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { stdout } from "node:process";
+import { formatTaskChecklist, previewScenario } from "@yomeets/agent-core";
+import { ScriptedModelProvider } from "@yomeets/model-router";
 
 const host = "127.0.0.1";
 const port = 47821;
@@ -115,6 +117,36 @@ async function submitTask(command: string) {
   stdout.write(`Queued ${body.task.id}: ${body.task.command}\n`);
 }
 
+function readPreviewArgs(args: string[]) {
+  const intentIndex = args.indexOf("--intent-json");
+
+  if (intentIndex === -1 || !args[intentIndex + 1]) {
+    throw new Error("preview requires --intent-json");
+  }
+
+  const command = [...args.slice(0, intentIndex), ...args.slice(intentIndex + 2)].join(" ").trim();
+
+  if (!command) {
+    throw new Error("preview command is required");
+  }
+
+  return {
+    command,
+    intentJson: args[intentIndex + 1]
+  };
+}
+
+async function previewTask(args: string[]) {
+  const { command, intentJson } = readPreviewArgs(args);
+  const preview = await previewScenario(command, new ScriptedModelProvider([intentJson]));
+
+  if (preview.status === "failed") {
+    throw new Error(`${preview.reason}: ${preview.error}`);
+  }
+
+  stdout.write(`${preview.command}\n${formatTaskChecklist(preview.trace)}\n`);
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
 
@@ -128,7 +160,12 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n");
+  if (command === "preview") {
+    await previewTask(args);
+    return;
+  }
+
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n");
 }
 
 main()
