@@ -34,7 +34,11 @@ importers:
         specifier: ^24.3.0
         version: 24.13.3
 
-  packages/agent-core: {}
+  packages/agent-core:
+    dependencies:
+      '@yomeets/policy-engine':
+        specifier: workspace:*
+        version: link:../policy-engine
 
   packages/browser-core: {}
 
