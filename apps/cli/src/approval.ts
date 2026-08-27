@@ -17,7 +17,10 @@ export function parseApprovalAnswer(answer: string) {
 }
 
 export async function promptForApproval(request: ApprovalRequest) {
-  const readline = createInterface(stdin, stdout);
+  const readline = createInterface({
+    input: stdin,
+    output: stdout
+  });
 
   try {
     const answer = await readline.question(`${request.prompt} (y/n) `);
