@@ -57,6 +57,9 @@ importers:
       '@yomeets/browser-core':
         specifier: workspace:*
         version: link:../browser-core
+      '@yomeets/integrations':
+        specifier: workspace:*
+        version: link:../integrations
       '@yomeets/model-router':
         specifier: workspace:*
         version: link:../model-router

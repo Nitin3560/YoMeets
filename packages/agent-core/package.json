@@ -13,11 +13,12 @@
     "build": "tsc -b",
     "dev": "tsc -b --watch",
     "lint": "tsc -b --pretty false",
-    "test": "tsc -b --pretty false && node dist/index.test.js && node dist/trace.test.js && node dist/scenario.test.js && node dist/checklist.test.js && node dist/failures.test.js && node dist/retry.test.js && node dist/loop.test.js && node dist/recovery.test.js && node dist/phase0.test.js",
+    "test": "tsc -b --pretty false && node dist/index.test.js && node dist/trace.test.js && node dist/scenario.test.js && node dist/checklist.test.js && node dist/failures.test.js && node dist/retry.test.js && node dist/loop.test.js && node dist/recovery.test.js && node dist/phase0.test.js && node dist/meeting-execution.test.js",
     "typecheck": "tsc -b"
   },
   "dependencies": {
     "@yomeets/browser-core": "workspace:*",
+    "@yomeets/integrations": "workspace:*",
     "@yomeets/model-router": "workspace:*",
     "@yomeets/policy-engine": "workspace:*",
     "@yomeets/storage": "workspace:*",

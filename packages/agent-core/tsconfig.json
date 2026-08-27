@@ -9,6 +9,7 @@
   "include": ["src"],
   "references": [
     { "path": "../browser-core" },
+    { "path": "../integrations" },
     { "path": "../model-router" },
     { "path": "../policy-engine" },
     { "path": "../storage" },
