@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { stdout } from "node:process";
 import { formatTaskChecklist, previewScenario, runPhase0Task } from "@yomeets/agent-core";
+import { formatBenchmarkSummary, runPhase1Benchmark } from "@yomeets/benchmark-phase1";
 import { LocalHeuristicModelProvider, ScriptedModelProvider } from "@yomeets/model-router";
 import { createApprovalRequest } from "@yomeets/policy-engine";
 import { openStorage, runMigrations } from "@yomeets/storage";
@@ -200,6 +201,16 @@ async function runPhase0Command(command: string) {
   }
 }
 
+async function runPhase1BenchmarkCommand() {
+  const summary = await runPhase1Benchmark();
+
+  stdout.write(`${formatBenchmarkSummary(summary)}\n`);
+
+  if (summary.failed > 0) {
+    process.exitCode = 1;
+  }
+}
+
 async function approveTask(args: string[]) {
   const [taskId, ...labelParts] = args;
   const label = labelParts.join(" ").trim();
@@ -241,6 +252,11 @@ async function main() {
     return;
   }
 
+  if (command === "benchmark" && args[0] === "phase1") {
+    await runPhase1BenchmarkCommand();
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
@@ -251,7 +267,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()

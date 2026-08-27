@@ -1,23 +1,23 @@
 {
-  "name": "@yomeets/cli",
+  "name": "@yomeets/benchmark-phase1",
   "private": true,
   "type": "module",
-  "bin": {
-    "yomeets": "dist/main.js"
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -b",
-    "dev": "tsc -b && node dist/main.js serve",
     "lint": "tsc -b --pretty false",
-    "test": "tsc -b --pretty false && node dist/approval.test.js",
+    "test": "tsc -b --pretty false && node dist/index.test.js",
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@yomeets/agent-core": "workspace:*",
-    "@yomeets/benchmark-phase1": "workspace:*",
+    "@yomeets/browser-core": "workspace:*",
     "@yomeets/model-router": "workspace:*",
-    "@yomeets/policy-engine": "workspace:*",
-    "@yomeets/shared": "workspace:*",
     "@yomeets/storage": "workspace:*",
     "@yomeets/task-engine": "workspace:*"
   },

@@ -1,6 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "tests/benchmarks/*"
   - "tests/fake-sites/*"
 allowBuilds:
   better-sqlite3: true

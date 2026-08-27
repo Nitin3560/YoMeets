@@ -9,6 +9,7 @@
   "include": ["src"],
   "references": [
     { "path": "../../packages/agent-core" },
+    { "path": "../../tests/benchmarks/phase1" },
     { "path": "../../packages/model-router" },
     { "path": "../../packages/policy-engine" },
     { "path": "../../packages/shared" },

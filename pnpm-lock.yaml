@@ -29,6 +29,9 @@ importers:
       '@yomeets/agent-core':
         specifier: workspace:*
         version: link:../../packages/agent-core
+      '@yomeets/benchmark-phase1':
+        specifier: workspace:*
+        version: link:../../tests/benchmarks/phase1
       '@yomeets/model-router':
         specifier: workspace:*
         version: link:../../packages/model-router
@@ -108,6 +111,25 @@ importers:
       zod:
         specifier: ^4.4.3
         version: 4.4.3
+
+  tests/benchmarks/phase1:
+    dependencies:
+      '@yomeets/browser-core':
+        specifier: workspace:*
+        version: link:../../../packages/browser-core
+      '@yomeets/model-router':
+        specifier: workspace:*
+        version: link:../../../packages/model-router
+      '@yomeets/storage':
+        specifier: workspace:*
+        version: link:../../../packages/storage
+      '@yomeets/task-engine':
+        specifier: workspace:*
+        version: link:../../../packages/task-engine
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
 
   tests/fake-sites/network:
     devDependencies:
