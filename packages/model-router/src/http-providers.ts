@@ -42,6 +42,20 @@ type OllamaResponse = {
   eval_count?: number;
 };
 
+type GeminiResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+  };
+};
+
 function requireEnv(name: string) {
   const value = process.env[name];
 
@@ -208,5 +222,67 @@ export class OllamaModelProvider implements PricedProvider {
 
   costForUsage(_usage: ProviderUsage) {
     return 0;
+  }
+}
+
+export class GeminiModelProvider implements PricedProvider {
+  readonly id = "gemini";
+
+  constructor(
+    readonly model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
+    private readonly apiKey = requireEnv("GEMINI_API_KEY")
+  ) {}
+
+  async complete(request: ModelRequest): Promise<ModelResponse> {
+    const url = new URL(`https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`);
+
+    url.searchParams.set("key", this.apiKey);
+
+    const response = await fetch(url, {
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: request.user
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0
+        },
+        systemInstruction: {
+          parts: [
+            {
+              text: request.system
+            }
+          ]
+        }
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini request failed with ${response.status}: ${await response.text()}`);
+    }
+
+    const body = await response.json() as GeminiResponse;
+
+    return {
+      text: body.candidates?.flatMap((candidate) => candidate.content?.parts ?? []).map((part) => part.text ?? "").join("").trim() ?? "",
+      usage: {
+        inputTokens: body.usageMetadata?.promptTokenCount ?? 0,
+        outputTokens: body.usageMetadata?.candidatesTokenCount ?? 0
+      }
+    };
+  }
+
+  costForUsage(usage: ProviderUsage) {
+    return price(usage.inputTokens, usage.outputTokens, 0.3, 2.5);
   }
 }

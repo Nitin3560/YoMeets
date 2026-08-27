@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { AnthropicModelProvider, OllamaModelProvider, OpenAiModelProvider } from "./http-providers.js";
+import { AnthropicModelProvider, GeminiModelProvider, OllamaModelProvider, OpenAiModelProvider } from "./http-providers.js";
 
 const originalFetch = globalThis.fetch;
 
@@ -35,6 +35,30 @@ try {
           usage: {
             input_tokens: 17,
             output_tokens: 19
+          }
+        })
+      );
+    }
+
+    if (url.includes("generativelanguage")) {
+      assert.equal(new URL(url).searchParams.get("key"), "gemini_test");
+
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: "{\"intent\":\"search_profile\",\"targets\":[{\"name\":\"John Smith\"}],\"action\":{\"type\":\"open_profile\"}}"
+                  }
+                ]
+              }
+            }
+          ],
+          usageMetadata: {
+            candidatesTokenCount: 29,
+            promptTokenCount: 31
           }
         })
       );
@@ -80,6 +104,17 @@ try {
   assert.deepEqual(ollama.usage, {
     inputTokens: 21,
     outputTokens: 23
+  });
+
+  const gemini = await new GeminiModelProvider("gemini-test", "gemini_test").complete({
+    system: "Parse",
+    user: "Raw task: Search for John Smith"
+  });
+
+  assert.equal(JSON.parse(gemini.text).targets[0].name, "John Smith");
+  assert.deepEqual(gemini.usage, {
+    inputTokens: 31,
+    outputTokens: 29
   });
 } finally {
   globalThis.fetch = originalFetch;

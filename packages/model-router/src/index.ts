@@ -1,6 +1,7 @@
 export { LocalHeuristicModelProvider } from "./local-parser.js";
 export {
   AnthropicModelProvider,
+  GeminiModelProvider,
   OllamaModelProvider,
   OpenAiModelProvider,
   type PricedProvider,
