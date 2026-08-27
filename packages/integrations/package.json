@@ -1,0 +1,25 @@
+{
+  "name": "@yomeets/integrations",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "lint": "tsc -b --pretty false",
+    "test": "tsc -b --pretty false && node dist/github.test.js && node dist/google-calendar.test.js && node dist/gmail.test.js && node dist/executor.test.js",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@yomeets/task-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0"
+  }
+}

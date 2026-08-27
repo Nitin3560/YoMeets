@@ -76,6 +76,16 @@ importers:
 
   packages/browser-core: {}
 
+  packages/integrations:
+    dependencies:
+      '@yomeets/task-engine':
+        specifier: workspace:*
+        version: link:../task-engine
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
+
   packages/model-router:
     devDependencies:
       '@types/node':
