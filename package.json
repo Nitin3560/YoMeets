@@ -1,8 +1,10 @@
 {
   "name": "yomeets",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@11.19.0",
   "scripts": {
+    "benchmark:meetings": "pnpm build && node --experimental-strip-types scripts/benchmark-meetings.ts",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
