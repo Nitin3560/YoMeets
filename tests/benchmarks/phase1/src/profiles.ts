@@ -1,4 +1,13 @@
-export const people = [
+export type FakeProfile = {
+  id: string;
+  name: string;
+  company: string;
+  school: string;
+  headline: string;
+  status: "None" | "Pending" | "Sent";
+};
+
+export const fakeProfiles: FakeProfile[] = [
   {
     id: "john-smith-google",
     name: "John Smith",
