@@ -12,6 +12,7 @@ Providers:
 - `local`: built-in heuristic parser, no token cost
 - `openai`: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, default `gpt-5.1`
 - `anthropic`: `ANTHROPIC_API_KEY`, optional `ANTHROPIC_MODEL`, default `claude-sonnet-4-5`
+- `gemini`: `GEMINI_API_KEY`, optional `GEMINI_MODEL`, default `gemini-2.5-flash`
 - `ollama`: local Ollama server, optional `OLLAMA_MODEL`, default `llama3.1:8b`
 
 The table reports provider availability, Phase 1 success rate, invalid-JSON rate, total latency, token counts, and estimated token cost.
@@ -22,10 +23,13 @@ Pricing assumptions:
 
 - OpenAI `gpt-5.1`: $1.25 / 1M input tokens and $10 / 1M output tokens
 - Anthropic Claude Sonnet 4.5: $3 / 1M input tokens and $15 / 1M output tokens
+- Gemini 2.5 Flash: $0.30 / 1M input tokens and $2.50 / 1M output tokens
 - Ollama/local: $0 local token cost
 
 Reference docs:
 
 - OpenAI Responses API: https://platform.openai.com/docs/api-reference/responses
 - Anthropic Messages API: https://docs.anthropic.com/en/api/messages
+- Gemini generateContent API: https://ai.google.dev/api/generate-content
+- Gemini API pricing: https://ai.google.dev/gemini-api/docs/pricing
 - Ollama generate API: https://github.com/ollama/ollama/blob/main/docs/api.md

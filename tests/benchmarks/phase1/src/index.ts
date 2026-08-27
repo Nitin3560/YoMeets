@@ -8,6 +8,7 @@ import { classifyFailure, decideRetry } from "@yomeets/agent-core";
 import { verifyOutcome, type PageObservation } from "@yomeets/browser-core";
 import {
   AnthropicModelProvider,
+  GeminiModelProvider,
   LocalHeuristicModelProvider,
   OllamaModelProvider,
   OpenAiModelProvider,
@@ -94,7 +95,7 @@ export type SideEffectSafetySummary = {
   rows: SideEffectSafetyRow[];
 };
 
-export type ModelBenchmarkProvider = "local" | "openai" | "anthropic" | "ollama";
+export type ModelBenchmarkProvider = "local" | "openai" | "anthropic" | "gemini" | "ollama";
 
 export type ModelBenchmarkRow = {
   provider: string;
@@ -598,6 +599,11 @@ function providerFromName(name: ModelBenchmarkProvider) {
     return new InstrumentedModelProvider(provider, provider.id, provider.model, (usage) => provider.costForUsage(usage));
   }
 
+  if (name === "gemini") {
+    const provider = new GeminiModelProvider();
+    return new InstrumentedModelProvider(provider, provider.id, provider.model, (usage) => provider.costForUsage(usage));
+  }
+
   if (name === "ollama") {
     const provider = new OllamaModelProvider();
     return new InstrumentedModelProvider(provider, provider.id, provider.model, (usage) => provider.costForUsage(usage));
@@ -607,7 +613,7 @@ function providerFromName(name: ModelBenchmarkProvider) {
 }
 
 export async function runPhase4ModelBenchmark(
-  providers: ModelBenchmarkProvider[] = ["local", "openai", "anthropic", "ollama"]
+  providers: ModelBenchmarkProvider[] = ["local", "openai", "anthropic", "gemini", "ollama"]
 ): Promise<ModelBenchmarkSummary> {
   const rows: ModelBenchmarkRow[] = [];
 
