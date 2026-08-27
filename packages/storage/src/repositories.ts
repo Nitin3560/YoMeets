@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 import type { Storage } from "./database.js";
-import { actions, auditEvents, taskPlans, tasks } from "./schema.js";
+import { actions, auditEvents, taskIntents, taskPlans, tasks, verificationResults } from "./schema.js";
 
 function now() {
   return new Date().toISOString();
@@ -34,6 +34,39 @@ export class TaskRepository {
 
   findById(id: string) {
     return this.storage.db.select().from(tasks).where(eq(tasks.id, id)).get();
+  }
+
+  updateStatus(id: string, status: string) {
+    this.storage.db
+      .update(tasks)
+      .set({
+        status,
+        updatedAt: now()
+      })
+      .where(eq(tasks.id, id))
+      .run();
+  }
+}
+
+export type CreateTaskIntentInput = {
+  taskId: string;
+  intent: unknown;
+};
+
+export class TaskIntentRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateTaskIntentInput) {
+    const intent = {
+      createdAt: now(),
+      id: randomUUID(),
+      intentJson: asJson(input.intent),
+      taskId: input.taskId,
+      updatedAt: null
+    };
+
+    this.storage.db.insert(taskIntents).values(intent).run();
+    return intent;
   }
 }
 
@@ -70,6 +103,30 @@ export class ActionRepository {
       })
       .where(eq(actions.id, id))
       .run();
+  }
+}
+
+export type CreateVerificationResultInput = {
+  taskId: string;
+  actionId?: string;
+  result: unknown;
+};
+
+export class VerificationResultRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateVerificationResultInput) {
+    const result = {
+      actionId: input.actionId ?? null,
+      createdAt: now(),
+      id: randomUUID(),
+      resultJson: asJson(input.result),
+      taskId: input.taskId,
+      updatedAt: null
+    };
+
+    this.storage.db.insert(verificationResults).values(result).run();
+    return result;
   }
 }
 
