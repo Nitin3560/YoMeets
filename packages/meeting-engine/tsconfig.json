@@ -8,6 +8,9 @@
   },
   "include": ["src"],
   "references": [
-    { "path": "../model-router" }
+    { "path": "../integrations" },
+    { "path": "../model-router" },
+    { "path": "../policy-engine" },
+    { "path": "../storage" }
   ]
 }
