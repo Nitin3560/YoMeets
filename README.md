@@ -31,6 +31,10 @@ The current fake network site is a deterministic proving ground for execution sa
 - `pnpm lint`
 - `pnpm typecheck`
 
+## Integration Smoke Test
+
+Direct API calls can be checked with `node scripts/smoke-integrations.mjs` after `pnpm build`. See `docs/phase3-integration-smoke.md` for the required environment variables.
+
 ## Local Runner
 
 ```bash
