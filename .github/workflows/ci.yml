@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Phase 1 benchmark
+        run: node apps/cli/dist/main.js benchmark phase1
+
+      - name: Phase 2 fault benchmark
+        run: node apps/cli/dist/main.js benchmark phase2
+
+      - name: Phase 3 safety proof
+        run: node apps/cli/dist/main.js benchmark phase3
+
+      - name: Phase 5 demo smoke
+        run: node apps/cli/dist/main.js demo phase5 --record artifacts/phase5-demo.cast
