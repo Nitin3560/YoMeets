@@ -1,7 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { Storage } from "./database.js";
-import { actions, auditEvents, taskIntents, taskPlans, tasks, verificationResults } from "./schema.js";
+import {
+  actions,
+  auditEvents,
+  meetingCommitments,
+  meetings,
+  plannedMeetingActions,
+  taskIntents,
+  taskPlans,
+  tasks,
+  verificationResults
+} from "./schema.js";
 
 function now() {
   return new Date().toISOString();
@@ -127,6 +137,140 @@ export class VerificationResultRepository {
 
     this.storage.db.insert(verificationResults).values(result).run();
     return result;
+  }
+}
+
+export type CreateMeetingInput = {
+  title?: string;
+  transcript: string;
+};
+
+export class MeetingRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateMeetingInput) {
+    const meeting = {
+      createdAt: now(),
+      id: randomUUID(),
+      title: input.title ?? null,
+      transcript: input.transcript,
+      updatedAt: null
+    };
+
+    this.storage.db.insert(meetings).values(meeting).run();
+    return meeting;
+  }
+}
+
+export type CreateMeetingCommitmentInput = {
+  meetingId: string;
+  commitment: unknown;
+  status?: string;
+};
+
+export class MeetingCommitmentRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateMeetingCommitmentInput) {
+    const commitment = {
+      commitmentJson: asJson(input.commitment),
+      createdAt: now(),
+      externalStatus: null,
+      id: randomUUID(),
+      meetingId: input.meetingId,
+      status: input.status ?? "open",
+      updatedAt: null
+    };
+
+    this.storage.db.insert(meetingCommitments).values(commitment).run();
+    return commitment;
+  }
+
+  updateExternalStatus(id: string, externalStatus: string, status = "open") {
+    this.storage.db
+      .update(meetingCommitments)
+      .set({
+        externalStatus,
+        status,
+        updatedAt: now()
+      })
+      .where(eq(meetingCommitments.id, id))
+      .run();
+  }
+
+  listOpen() {
+    return this.storage.db.select().from(meetingCommitments).where(eq(meetingCommitments.status, "open")).all();
+  }
+}
+
+export type CreatePlannedMeetingActionInput = {
+  meetingId: string;
+  commitmentId: string;
+  action: {
+    id?: string;
+    type: string;
+  };
+  approvalStatus?: string;
+  executionStatus?: string;
+};
+
+export class PlannedMeetingActionRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreatePlannedMeetingActionInput) {
+    const action = {
+      actionJson: asJson(input.action),
+      actionType: input.action.type,
+      approvalStatus: input.approvalStatus ?? "not_required",
+      commitmentId: input.commitmentId,
+      createdAt: now(),
+      executionStatus: input.executionStatus ?? "pending",
+      externalId: null,
+      id: randomUUID(),
+      meetingId: input.meetingId,
+      plannedActionId: input.action.id ?? randomUUID(),
+      updatedAt: null,
+      verificationJson: null
+    };
+
+    this.storage.db.insert(plannedMeetingActions).values(action).run();
+    return action;
+  }
+
+  updateApprovalStatus(id: string, approvalStatus: string) {
+    this.storage.db
+      .update(plannedMeetingActions)
+      .set({
+        approvalStatus,
+        updatedAt: now()
+      })
+      .where(eq(plannedMeetingActions.id, id))
+      .run();
+  }
+
+  recordExecution(id: string, execution: { status: string; externalId?: string; verification?: unknown }) {
+    this.storage.db
+      .update(plannedMeetingActions)
+      .set({
+        executionStatus: execution.status,
+        externalId: execution.externalId ?? null,
+        updatedAt: now(),
+        verificationJson: execution.verification === undefined ? null : asJson(execution.verification)
+      })
+      .where(eq(plannedMeetingActions.id, id))
+      .run();
+  }
+
+  findById(id: string) {
+    return this.storage.db.select().from(plannedMeetingActions).where(eq(plannedMeetingActions.id, id)).get();
+  }
+
+  findByPlannedActionId(meetingId: string, plannedActionId: string) {
+    return this.storage.db
+      .select()
+      .from(plannedMeetingActions)
+      .where(and(eq(plannedMeetingActions.meetingId, meetingId), eq(plannedMeetingActions.plannedActionId, plannedActionId)))
+      .get();
   }
 }
 

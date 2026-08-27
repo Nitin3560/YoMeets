@@ -5,6 +5,9 @@ import { tmpdir } from "node:os";
 import { openStorage, runMigrations } from "./database.js";
 import {
   ActionRepository,
+  MeetingCommitmentRepository,
+  MeetingRepository,
+  PlannedMeetingActionRepository,
   TaskIntentRepository,
   TaskPlanRepository,
   TaskRepository,
@@ -22,6 +25,9 @@ try {
   const plans = new TaskPlanRepository(storage);
   const actions = new ActionRepository(storage);
   const verifications = new VerificationResultRepository(storage);
+  const meetings = new MeetingRepository(storage);
+  const meetingCommitments = new MeetingCommitmentRepository(storage);
+  const plannedMeetingActions = new PlannedMeetingActionRepository(storage);
   const task = tasks.create({
     rawCommand: "Connect with John Smith"
   });
@@ -71,6 +77,43 @@ try {
   assert.equal(JSON.parse(intent.intentJson).intent, "send_connection_request");
   assert.equal(JSON.parse(verification.resultJson).passed, true);
   assert.equal(tasks.findById(task.id)?.status, "completed");
+
+  const meeting = meetings.create({
+    title: "Planning",
+    transcript: "Nitin will investigate failed jobs."
+  });
+  const commitment = meetingCommitments.create({
+    commitment: {
+      owner: "Nitin",
+      summary: "Investigate failed jobs"
+    },
+    meetingId: meeting.id
+  });
+  const planned = plannedMeetingActions.create({
+    action: {
+      id: "planned_1",
+      type: "github.create_issue"
+    },
+    approvalStatus: "pending",
+    commitmentId: commitment.id,
+    meetingId: meeting.id
+  });
+
+  plannedMeetingActions.updateApprovalStatus(planned.id, "approved");
+  plannedMeetingActions.recordExecution(planned.id, {
+    externalId: "42",
+    status: "verified",
+    verification: {
+      passed: true
+    }
+  });
+
+  const savedPlanned = plannedMeetingActions.findByPlannedActionId(meeting.id, "planned_1");
+
+  assert.equal(savedPlanned?.approvalStatus, "approved");
+  assert.equal(savedPlanned?.executionStatus, "verified");
+  assert.equal(savedPlanned?.externalId, "42");
+  assert.equal(JSON.parse(savedPlanned?.verificationJson ?? "{}").passed, true);
 } finally {
   storage.sqlite.close();
 }
