@@ -1,6 +1,6 @@
 # YoMeets — Meeting-to-Execution Agent
 
-YoMeets turns decisions and commitments from engineering meetings into verified actions across the tools where work actually happens.
+YoMeets turns commitments made in engineering meetings into verified actions in GitHub, Calendar, and Gmail.
 
 Meeting summarizers tell you what was discussed. YoMeets is built for the next step: extract owners, deadlines, decisions, and follow-ups from a transcript; generate an execution plan; ask for approval before external side effects; execute approved actions; verify completion; and track what remains unresolved before the next meeting.
 
