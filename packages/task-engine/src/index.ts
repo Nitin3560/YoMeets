@@ -6,6 +6,7 @@ export {
   type PlannedActionType,
   type PlannedMeetingAction
 } from "./commitment-planner.js";
+export { extractMeetingCommitments, type CommitmentExtractionResult } from "./commitment-extractor.js";
 export {
   parseTaskIntent,
   TaskIntentSchema,
