@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { stdout } from "node:process";
 import { formatTaskChecklist, previewScenario, runPhase0Task } from "@yomeets/agent-core";
 import {
@@ -14,7 +15,8 @@ import {
   runPhase4ModelBenchmark,
   runPhase3SideEffectSafetyProof
 } from "@yomeets/benchmark-phase1";
-import { LocalHeuristicModelProvider, ScriptedModelProvider } from "@yomeets/model-router";
+import { runMeetingPipeline, type MeetingIntegrationAdapter } from "@yomeets/meeting-engine";
+import { GeminiModelProvider, LocalHeuristicModelProvider, OpenAiModelProvider, ScriptedModelProvider } from "@yomeets/model-router";
 import { createApprovalRequest } from "@yomeets/policy-engine";
 import { openStorage, runMigrations } from "@yomeets/storage";
 import { normalizeTranscript } from "@yomeets/task-engine";
@@ -262,6 +264,89 @@ async function runPhase5DemoCommand(args: string[]) {
   stdout.write(`${formatEndToEndDemoSummary(summary)}\n`);
 }
 
+function hasFlag(args: string[], flag: string) {
+  return args.includes(flag);
+}
+
+function modelProviderFromEnv() {
+  if (process.env.GEMINI_API_KEY) {
+    return new GeminiModelProvider();
+  }
+
+  if (process.env.OPENAI_API_KEY) {
+    return new OpenAiModelProvider();
+  }
+
+  throw new Error("Set GEMINI_API_KEY or OPENAI_API_KEY to process a meeting transcript");
+}
+
+function dryRunIntegrations(): MeetingIntegrationAdapter {
+  const results = new Map<string, unknown>();
+
+  return {
+    createDraft: async (action) => {
+      const id = `dry_gmail_${results.size + 1}`;
+      results.set(id, { id });
+      return { externalId: id, provider: "gmail", raw: action };
+    },
+    createIssue: async (action) => {
+      const id = `dry_github_${results.size + 1}`;
+      results.set(id, { title: action.title });
+      return { externalId: id, provider: "github", raw: action };
+    },
+    createOrUpdateEvent: async (action) => {
+      const id = `dry_calendar_${results.size + 1}`;
+      results.set(id, { start: { dateTime: action.newTime } });
+      return { externalId: id, provider: "google_calendar", raw: action };
+    },
+    getDraft: async (id) => results.get(id) as { id?: string; message?: { id?: string } },
+    getEvent: async (id) => results.get(id) as { start?: { dateTime?: string } },
+    getIssue: async (id) => results.get(id) as { title?: string }
+  };
+}
+
+async function processMeeting(args: string[]) {
+  const filePath = args.find((arg) => !arg.startsWith("--"));
+
+  if (!filePath) {
+    throw new Error("process-meeting requires a transcript file path");
+  }
+
+  const storage = openStorage();
+  const transcript = readFileSync(filePath, "utf8");
+
+  runMigrations(storage);
+
+  try {
+    const result = await runMeetingPipeline(storage, {
+      approve: async (request) => {
+        const approval = await promptForApproval(request);
+
+        return approval.status === "approved" ? "yes" : "no";
+      },
+      integrations: hasFlag(args, "--dry-run") ? dryRunIntegrations() : undefined,
+      provider: modelProviderFromEnv(),
+      title: filePath,
+      transcript
+    });
+
+    stdout.write(`Meeting ${result.meetingId}\n`);
+    stdout.write(`Commitments: ${result.commitments.length}\n`);
+
+    for (const action of result.actions) {
+      stdout.write(`${action.status}: ${action.action.type}`);
+
+      if (action.externalId) {
+        stdout.write(` -> ${action.externalId}`);
+      }
+
+      stdout.write("\n");
+    }
+  } finally {
+    storage.sqlite.close();
+  }
+}
+
 async function approveTask(args: string[]) {
   const [taskId, ...labelParts] = args;
   const label = labelParts.join(" ").trim();
@@ -328,6 +413,11 @@ async function main() {
     return;
   }
 
+  if (command === "process-meeting") {
+    await processMeeting(args);
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
@@ -338,7 +428,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets process-meeting notes.txt --dry-run\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()
