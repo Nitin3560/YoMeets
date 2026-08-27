@@ -20,5 +20,8 @@
     "@yomeets/model-router": "workspace:*",
     "@yomeets/storage": "workspace:*",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0"
   }
 }

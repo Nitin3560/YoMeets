@@ -69,12 +69,24 @@ importers:
       '@yomeets/task-engine':
         specifier: workspace:*
         version: link:../task-engine
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
 
   packages/browser-core: {}
 
-  packages/model-router: {}
+  packages/model-router:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
 
-  packages/policy-engine: {}
+  packages/policy-engine:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
 
   packages/protocol:
     dependencies:
@@ -96,6 +108,9 @@ importers:
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
@@ -111,6 +126,10 @@ importers:
       zod:
         specifier: ^4.4.3
         version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
 
   tests/benchmarks/phase1:
     dependencies:

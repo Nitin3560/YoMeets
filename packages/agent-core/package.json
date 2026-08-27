@@ -22,5 +22,8 @@
     "@yomeets/policy-engine": "workspace:*",
     "@yomeets/storage": "workspace:*",
     "@yomeets/task-engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0"
   }
 }
