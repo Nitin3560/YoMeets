@@ -5,8 +5,10 @@ import { formatTaskChecklist, previewScenario, runPhase0Task } from "@yomeets/ag
 import {
   formatBenchmarkSummary,
   formatFaultBenchmarkSummary,
+  formatSideEffectSafetySummary,
   runPhase1Benchmark,
-  runPhase2FaultBenchmark
+  runPhase2FaultBenchmark,
+  runPhase3SideEffectSafetyProof
 } from "@yomeets/benchmark-phase1";
 import { LocalHeuristicModelProvider, ScriptedModelProvider } from "@yomeets/model-router";
 import { createApprovalRequest } from "@yomeets/policy-engine";
@@ -222,6 +224,12 @@ async function runPhase2BenchmarkCommand() {
   stdout.write(`${formatFaultBenchmarkSummary(summary)}\n`);
 }
 
+function runPhase3BenchmarkCommand() {
+  const summary = runPhase3SideEffectSafetyProof();
+
+  stdout.write(`${formatSideEffectSafetySummary(summary)}\n`);
+}
+
 async function approveTask(args: string[]) {
   const [taskId, ...labelParts] = args;
   const label = labelParts.join(" ").trim();
@@ -273,6 +281,11 @@ async function main() {
     return;
   }
 
+  if (command === "benchmark" && args[0] === "phase3") {
+    runPhase3BenchmarkCommand();
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
@@ -283,7 +296,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()
