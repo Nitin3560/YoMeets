@@ -1,4 +1,12 @@
 export {
+  planMeetingCommitments,
+  type CommitmentType,
+  type MeetingCommitment,
+  type MeetingExecutionPlan,
+  type PlannedActionType,
+  type PlannedMeetingAction
+} from "./commitment-planner.js";
+export {
   parseTaskIntent,
   TaskIntentSchema,
   TaskTargetSchema,

@@ -13,7 +13,7 @@
     "build": "tsc -b",
     "dev": "tsc -b --watch",
     "lint": "tsc -b --pretty false",
-    "test": "tsc -b --pretty false && node dist/intent.test.js && node dist/parser.test.js && node dist/planner.test.js && node dist/transcript.test.js",
+    "test": "tsc -b --pretty false && node dist/intent.test.js && node dist/parser.test.js && node dist/planner.test.js && node dist/transcript.test.js && node dist/commitment-planner.test.js",
     "typecheck": "tsc -b"
   },
   "dependencies": {
