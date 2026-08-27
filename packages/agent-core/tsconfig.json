@@ -10,6 +10,7 @@
     { "path": "../browser-core" },
     { "path": "../model-router" },
     { "path": "../policy-engine" },
+    { "path": "../storage" },
     { "path": "../task-engine" }
   ]
 }

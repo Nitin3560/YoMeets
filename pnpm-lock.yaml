@@ -57,6 +57,9 @@ importers:
       '@yomeets/policy-engine':
         specifier: workspace:*
         version: link:../policy-engine
+      '@yomeets/storage':
+        specifier: workspace:*
+        version: link:../storage
       '@yomeets/task-engine':
         specifier: workspace:*
         version: link:../task-engine
