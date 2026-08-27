@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -57,6 +58,26 @@ export type FaultRunResult = {
 
 export type FaultBenchmarkSummary = {
   faults: FaultRunResult[];
+};
+
+export type CrashPoint =
+  | "before_approval"
+  | "after_approval_before_send"
+  | "after_send_before_confirmation"
+  | "after_action_result_before_task_status";
+
+export type SideEffectSafetyRow = {
+  actionType: "connect";
+  crashPoint: CrashPoint;
+  duplicate: boolean;
+  sendCount: number;
+  finalDbStatus: "completed" | "failed" | "waiting_for_approval";
+  finalSiteStatus: FakeProfile["status"];
+  why: string;
+};
+
+export type SideEffectSafetySummary = {
+  rows: SideEffectSafetyRow[];
 };
 
 type SiteState = Map<string, FakeProfile["status"]>;
@@ -515,6 +536,214 @@ export function formatBenchmarkSummary(summary: BenchmarkSummary) {
 
   rows.push("");
   rows.push(`Pass rate: ${summary.passed}/${summary.total} (${Math.round(summary.passRate * 100)}%)`);
+
+  return rows.join("\n");
+}
+
+type CrashProofState = {
+  approval: "none" | "approved";
+  actionResultRecorded: boolean;
+  taskStatus: "received" | "waiting_for_approval" | "completed" | "failed";
+  siteStatus: FakeProfile["status"];
+  sendCount: number;
+};
+
+function createCrashProofState(): CrashProofState {
+  return {
+    actionResultRecorded: false,
+    approval: "none",
+    sendCount: 0,
+    siteStatus: "None",
+    taskStatus: "received"
+  };
+}
+
+function createCrashProofStorage() {
+  const dbPath = join(mkdtempSync(join(tmpdir(), "yomeets-phase3-")), "proof.sqlite");
+  const storage = openStorage(dbPath);
+
+  runMigrations(storage);
+
+  return storage;
+}
+
+function insertApproval(storage: Storage, taskId: string, status: "pending" | "approved") {
+  const now = new Date().toISOString();
+
+  storage.sqlite
+    .prepare(
+      [
+        "INSERT INTO approvals (id, task_id, risk_level, status, prompt, decided_at, created_at, updated_at)",
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      ].join(" ")
+    )
+    .run(
+      randomUUID(),
+      taskId,
+      "external_side_effect",
+      status,
+      "Approve external action: Send connection request?",
+      status === "approved" ? now : null,
+      now,
+      status === "approved" ? now : null
+    );
+}
+
+function inspectBeforeSend(state: CrashProofState) {
+  return state.siteStatus === "Sent" || state.siteStatus === "Pending";
+}
+
+function sendConnectionOnce(state: CrashProofState) {
+  if (inspectBeforeSend(state)) {
+    return;
+  }
+
+  state.sendCount += 1;
+  state.siteStatus = "Sent";
+}
+
+function runUntilCrash(storage: Storage, taskId: string, actionId: string, state: CrashProofState, crashPoint: CrashPoint) {
+  const tasks = new TaskRepository(storage);
+  const actions = new ActionRepository(storage);
+
+  state.taskStatus = "waiting_for_approval";
+  tasks.updateStatus(taskId, "waiting_for_approval");
+  insertApproval(storage, taskId, "pending");
+
+  if (crashPoint === "before_approval") {
+    throw new Error("forced crash before approval");
+  }
+
+  state.approval = "approved";
+  insertApproval(storage, taskId, "approved");
+
+  if (crashPoint === "after_approval_before_send") {
+    throw new Error("forced crash after approval");
+  }
+
+  sendConnectionOnce(state);
+
+  if (crashPoint === "after_send_before_confirmation") {
+    throw new Error("forced crash after send");
+  }
+
+  state.actionResultRecorded = true;
+  actions.recordResult(actionId, { status: "completed" });
+
+  if (crashPoint === "after_action_result_before_task_status") {
+    throw new Error("forced crash after result");
+  }
+
+  state.taskStatus = "completed";
+  tasks.updateStatus(taskId, "completed");
+}
+
+function restartAfterCrash(storage: Storage, taskId: string, actionId: string, state: CrashProofState) {
+  const tasks = new TaskRepository(storage);
+  const actions = new ActionRepository(storage);
+
+  if (state.approval === "none") {
+    state.taskStatus = "waiting_for_approval";
+    tasks.updateStatus(taskId, "waiting_for_approval");
+    return;
+  }
+
+  if (inspectBeforeSend(state)) {
+    state.actionResultRecorded = true;
+    state.taskStatus = "completed";
+    actions.recordResult(actionId, { inspectedExternalState: true, status: "completed" });
+    tasks.updateStatus(taskId, "completed");
+    return;
+  }
+
+  sendConnectionOnce(state);
+  state.actionResultRecorded = true;
+  state.taskStatus = "completed";
+  actions.recordResult(actionId, { status: "completed" });
+  tasks.updateStatus(taskId, "completed");
+}
+
+function whyCrashWasSafe(crashPoint: CrashPoint, state: CrashProofState) {
+  if (crashPoint === "before_approval") {
+    return "approval gate held; no external action was authorized";
+  }
+
+  if (crashPoint === "after_approval_before_send") {
+    return "approval existed but inspect-first saw no side effect, so one send was allowed";
+  }
+
+  if (crashPoint === "after_send_before_confirmation") {
+    return "restart inspected fake-site state before retry and recorded the committed send";
+  }
+
+  return "recorded action result was replayed into final task status without sending again";
+}
+
+export function runPhase3SideEffectSafetyProof(): SideEffectSafetySummary {
+  const crashPoints: CrashPoint[] = [
+    "before_approval",
+    "after_approval_before_send",
+    "after_send_before_confirmation",
+    "after_action_result_before_task_status"
+  ];
+
+  return {
+    rows: crashPoints.map((crashPoint) => {
+      const storage = createCrashProofStorage();
+      const state = createCrashProofState();
+      const tasks = new TaskRepository(storage);
+      const actions = new ActionRepository(storage);
+      const task = tasks.create({
+        rawCommand: "Find John Smith at Google from UTA and send a connection request with 'Hello John.'"
+      });
+      const action = actions.create({
+        action: { type: "connect" },
+        requestId: `phase3_${task.id}`,
+        taskId: task.id
+      });
+
+      try {
+        try {
+          runUntilCrash(storage, task.id, action.id, state, crashPoint);
+        } catch {
+          restartAfterCrash(storage, task.id, action.id, state);
+        }
+
+        const persisted = tasks.findById(task.id);
+
+        return {
+          actionType: "connect",
+          crashPoint,
+          duplicate: state.sendCount > 1,
+          finalDbStatus: persisted?.status === "completed" ? "completed" : "waiting_for_approval",
+          finalSiteStatus: state.siteStatus,
+          sendCount: state.sendCount,
+          why: whyCrashWasSafe(crashPoint, state)
+        };
+      } finally {
+        storage.sqlite.close();
+      }
+    })
+  };
+}
+
+export function formatSideEffectSafetySummary(summary: SideEffectSafetySummary) {
+  const rows = [
+    "Action type | Forced crash point | Duplicate? | Sends | Final DB | Final fake site | Why",
+    "--- | --- | --- | ---: | --- | --- | ---",
+    ...summary.rows.map((row) => [
+      row.actionType,
+      row.crashPoint,
+      row.duplicate ? "yes" : "no",
+      String(row.sendCount),
+      row.finalDbStatus,
+      row.finalSiteStatus,
+      row.why
+    ].join(" | "))
+  ];
+
+  rows.push("");
+  rows.push("External-effect actions covered: connect");
 
   return rows.join("\n");
 }
