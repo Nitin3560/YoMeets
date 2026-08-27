@@ -1,0 +1,98 @@
+[
+  {
+    "id": "clear_owner_deadline",
+    "text": "Planning started with release status. Nitin will investigate the failed ingestion jobs by 2026-08-30. Sarah said the dashboards looked stable. The team agreed to keep the rollback plan ready. No other owners changed."
+  },
+  {
+    "id": "question_assigns_owner",
+    "text": "The deploy review was short. Sarah, can you check the flaky calendar sync by 2026-09-01? Nitin said the API logs were already attached. Marco asked about lunch. The team moved on."
+  },
+  {
+    "id": "decision_statement",
+    "text": "The storage debate continued. We decided to use Redis for short-lived execution locks. Ava noted that SQLite remains the durable store. Nobody took a separate follow-up. The meeting ended early."
+  },
+  {
+    "id": "vague_suggestion",
+    "text": "The auth retries still feel noisy. Maybe we should create an issue for the timeout pattern. Nobody volunteered directly. Priya said she would confirm logs later. The topic stayed unresolved."
+  },
+  {
+    "id": "backward_reference",
+    "text": "Sarah described an auth bug where refresh tokens expire during approval. Ten minutes later, Marco said create an issue for the auth thing Sarah mentioned earlier by 2026-09-03. The team agreed that was enough detail for now. No email was needed. The call wrapped."
+  },
+  {
+    "id": "pure_chatter",
+    "text": "The group talked about coffee, desk setups, and the office playlist. Someone mentioned the weather. Nobody assigned work or made a technical decision. The meeting ended with jokes. There were no follow-ups."
+  },
+  {
+    "id": "multiple_commitments",
+    "text": "The sprint sync covered three threads. Nitin will investigate the billing webhook retries by 2026-09-02. Priya will send the rollout summary to Sarah by 2026-09-01. We decided to keep the feature flag off until verification passes. The last five minutes were general chatter."
+  },
+  {
+    "id": "calendar_move",
+    "text": "The launch review conflicted with support rotation. Ava will move the release review to 2026-09-04T15:00:00-05:00. Marco confirmed he can attend. Nobody else had an update. The agenda stayed the same."
+  },
+  {
+    "id": "email_draft",
+    "text": "Customer follow-up came up near the end. Leo will send the incident recap to Priya by 2026-09-05. The team reviewed the timeline. No issue was created. The transcript ended there."
+  },
+  {
+    "id": "missing_deadline",
+    "text": "The importer still drops a few rows. Nitin will investigate the CSV parser edge case. Sarah asked for a short note when it is known. There was no exact deadline. Everyone agreed to revisit later."
+  },
+  {
+    "id": "low_confidence_no_owner",
+    "text": "The calendar page still confuses people. Someone said maybe create an issue for that rough onboarding moment. No owner was named. The team kept discussing design options. The item was not finalized."
+  },
+  {
+    "id": "owner_from_request",
+    "text": "The logs showed duplicate draft attempts. Priya, please investigate the duplicate Gmail draft path by 2026-09-06. Ava said the repro is in Slack. The rest was status updates. The meeting ended."
+  },
+  {
+    "id": "decision_lets_use",
+    "text": "The queue implementation came up again. Let's use the provider router for extraction retries. Nitin said it matches the existing parser. Nobody assigned a ticket yet. That was the only decision."
+  },
+  {
+    "id": "calendar_question",
+    "text": "A conflict appeared during planning. Marco, can you move the customer sync to 2026-09-07T10:00:00-05:00? Sarah said the room is available. The rest of the conversation was unrelated. No other work changed."
+  },
+  {
+    "id": "email_question",
+    "text": "The migration announcement needs a draft. Ava, can you send the migration note to Leo by 2026-09-08? Marco offered to review it afterward. The team also talked about office snacks. Nothing else was assigned."
+  },
+  {
+    "id": "two_issues",
+    "text": "Two failures were reviewed. Nitin will investigate the API timeout by 2026-09-09. Sarah will investigate the retry storm by 2026-09-10. Priya said the graphs are attached. No decisions were made."
+  },
+  {
+    "id": "correction",
+    "text": "At first the team thought Sarah owned the webhook issue. Correction: Marco will investigate the webhook retry bug by 2026-09-11. Sarah will only review notes. The meeting continued with unrelated status. No calendar work came up."
+  },
+  {
+    "id": "irrelevant_deadline",
+    "text": "The team joked that lunch should happen by noon. The actual work item was Leo will investigate the slow dashboard queries by 2026-09-12. Nobody needs an email. A calendar invite already exists. The meeting ended."
+  },
+  {
+    "id": "decision_no_owner",
+    "text": "After comparing options, we decided to keep OAuth scopes minimal. Nitin documented the risk informally. There was no owner assigned for follow-up. The calendar stayed unchanged. The call ended."
+  },
+  {
+    "id": "send_without_deadline",
+    "text": "The partner update needs a written note. Sarah will send the API status summary to Marco. Nitin said to keep it short. No exact deadline was stated. The final topic was hiring."
+  },
+  {
+    "id": "schedule_without_iso",
+    "text": "The demo slot changed. Priya will move the benchmark walkthrough to Friday. The team understood Friday was not yet normalized. Nobody created a ticket. The rest was cleanup."
+  },
+  {
+    "id": "back_reference_email",
+    "text": "Ava explained the customer saw duplicate reminders after rescheduling. Later, Nitin said send the reminder bug summary Ava mentioned to Sarah by 2026-09-13. The team agreed this should be a draft first. No other action was taken."
+  },
+  {
+    "id": "no_hallucination_from_interest",
+    "text": "Marco said the new model routing idea is interesting. Sarah said the benchmark charts are useful. Nobody promised to do anything. There was no decision and no assignment. The meeting ended."
+  },
+  {
+    "id": "mixed_calendar_issue_email",
+    "text": "Release prep had several actions. Nitin will investigate the failed CI job by 2026-09-14. Ava will move the release retro to 2026-09-15T14:00:00-05:00. Leo will send the launch checklist to Priya by 2026-09-14. We decided to keep manual approval before drafts."
+  }
+]

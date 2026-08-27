@@ -1,0 +1,400 @@
+[
+  {
+    "id": "clear_owner_deadline",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Nitin",
+        "actionType": "create_issue",
+        "description": "Investigate the failed ingestion jobs",
+        "deadline": "2026-08-30",
+        "sourceQuote": "Nitin will investigate the failed ingestion jobs by 2026-08-30.",
+        "timestamp": "sentence 2",
+        "confidence": 0.95
+      }
+    ]
+  },
+  {
+    "id": "question_assigns_owner",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Sarah",
+        "actionType": "create_issue",
+        "description": "Check the flaky calendar sync",
+        "deadline": "2026-09-01",
+        "sourceQuote": "Sarah, can you check the flaky calendar sync by 2026-09-01?",
+        "timestamp": "sentence 2",
+        "confidence": 0.9
+      }
+    ]
+  },
+  {
+    "id": "decision_statement",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "",
+        "actionType": "record_decision",
+        "description": "Use Redis for short-lived execution locks",
+        "deadline": null,
+        "sourceQuote": "We decided to use Redis for short-lived execution locks.",
+        "timestamp": "sentence 2",
+        "confidence": 0.96
+      }
+    ]
+  },
+  {
+    "id": "vague_suggestion",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "",
+        "actionType": "create_issue",
+        "description": "Create an issue for the timeout pattern",
+        "deadline": null,
+        "sourceQuote": "Maybe we should create an issue for the timeout pattern.",
+        "timestamp": "sentence 2",
+        "confidence": 0.42
+      }
+    ]
+  },
+  {
+    "id": "backward_reference",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Marco",
+        "actionType": "create_issue",
+        "description": "Create an issue for the auth bug where refresh tokens expire during approval",
+        "deadline": "2026-09-03",
+        "sourceQuote": "Marco said create an issue for the auth thing Sarah mentioned earlier by 2026-09-03.",
+        "timestamp": "sentence 2",
+        "confidence": 0.82
+      }
+    ]
+  },
+  {
+    "id": "pure_chatter",
+    "commitments": []
+  },
+  {
+    "id": "multiple_commitments",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Nitin",
+        "actionType": "create_issue",
+        "description": "Investigate the billing webhook retries",
+        "deadline": "2026-09-02",
+        "sourceQuote": "Nitin will investigate the billing webhook retries by 2026-09-02.",
+        "timestamp": "sentence 2",
+        "confidence": 0.95
+      },
+      {
+        "id": "commitment_2",
+        "owner": "Priya",
+        "actionType": "send_email",
+        "description": "Send the rollout summary to Sarah",
+        "deadline": "2026-09-01",
+        "sourceQuote": "Priya will send the rollout summary to Sarah by 2026-09-01.",
+        "timestamp": "sentence 3",
+        "confidence": 0.94
+      },
+      {
+        "id": "commitment_3",
+        "owner": "",
+        "actionType": "record_decision",
+        "description": "Keep the feature flag off until verification passes",
+        "deadline": null,
+        "sourceQuote": "We decided to keep the feature flag off until verification passes.",
+        "timestamp": "sentence 4",
+        "confidence": 0.96
+      }
+    ]
+  },
+  {
+    "id": "calendar_move",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Ava",
+        "actionType": "schedule_event",
+        "description": "Move the release review",
+        "deadline": "2026-09-04T15:00:00-05:00",
+        "sourceQuote": "Ava will move the release review to 2026-09-04T15:00:00-05:00.",
+        "timestamp": "sentence 2",
+        "confidence": 0.95
+      }
+    ]
+  },
+  {
+    "id": "email_draft",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Leo",
+        "actionType": "send_email",
+        "description": "Send the incident recap to Priya",
+        "deadline": "2026-09-05",
+        "sourceQuote": "Leo will send the incident recap to Priya by 2026-09-05.",
+        "timestamp": "sentence 2",
+        "confidence": 0.94
+      }
+    ]
+  },
+  {
+    "id": "missing_deadline",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Nitin",
+        "actionType": "create_issue",
+        "description": "Investigate the CSV parser edge case",
+        "deadline": null,
+        "sourceQuote": "Nitin will investigate the CSV parser edge case.",
+        "timestamp": "sentence 2",
+        "confidence": 0.9
+      }
+    ]
+  },
+  {
+    "id": "low_confidence_no_owner",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "",
+        "actionType": "create_issue",
+        "description": "Create an issue for the rough onboarding moment",
+        "deadline": null,
+        "sourceQuote": "Someone said maybe create an issue for that rough onboarding moment.",
+        "timestamp": "sentence 2",
+        "confidence": 0.38
+      }
+    ]
+  },
+  {
+    "id": "owner_from_request",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Priya",
+        "actionType": "create_issue",
+        "description": "Investigate the duplicate Gmail draft path",
+        "deadline": "2026-09-06",
+        "sourceQuote": "Priya, please investigate the duplicate Gmail draft path by 2026-09-06.",
+        "timestamp": "sentence 2",
+        "confidence": 0.93
+      }
+    ]
+  },
+  {
+    "id": "decision_lets_use",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "",
+        "actionType": "record_decision",
+        "description": "Use the provider router for extraction retries",
+        "deadline": null,
+        "sourceQuote": "Let's use the provider router for extraction retries.",
+        "timestamp": "sentence 2",
+        "confidence": 0.9
+      }
+    ]
+  },
+  {
+    "id": "calendar_question",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Marco",
+        "actionType": "schedule_event",
+        "description": "Move the customer sync",
+        "deadline": "2026-09-07T10:00:00-05:00",
+        "sourceQuote": "Marco, can you move the customer sync to 2026-09-07T10:00:00-05:00?",
+        "timestamp": "sentence 2",
+        "confidence": 0.92
+      }
+    ]
+  },
+  {
+    "id": "email_question",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Ava",
+        "actionType": "send_email",
+        "description": "Send the migration note to Leo",
+        "deadline": "2026-09-08",
+        "sourceQuote": "Ava, can you send the migration note to Leo by 2026-09-08?",
+        "timestamp": "sentence 2",
+        "confidence": 0.92
+      }
+    ]
+  },
+  {
+    "id": "two_issues",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Nitin",
+        "actionType": "create_issue",
+        "description": "Investigate the API timeout",
+        "deadline": "2026-09-09",
+        "sourceQuote": "Nitin will investigate the API timeout by 2026-09-09.",
+        "timestamp": "sentence 2",
+        "confidence": 0.95
+      },
+      {
+        "id": "commitment_2",
+        "owner": "Sarah",
+        "actionType": "create_issue",
+        "description": "Investigate the retry storm",
+        "deadline": "2026-09-10",
+        "sourceQuote": "Sarah will investigate the retry storm by 2026-09-10.",
+        "timestamp": "sentence 3",
+        "confidence": 0.95
+      }
+    ]
+  },
+  {
+    "id": "correction",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Marco",
+        "actionType": "create_issue",
+        "description": "Investigate the webhook retry bug",
+        "deadline": "2026-09-11",
+        "sourceQuote": "Correction: Marco will investigate the webhook retry bug by 2026-09-11.",
+        "timestamp": "sentence 2",
+        "confidence": 0.88
+      }
+    ]
+  },
+  {
+    "id": "irrelevant_deadline",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Leo",
+        "actionType": "create_issue",
+        "description": "Investigate the slow dashboard queries",
+        "deadline": "2026-09-12",
+        "sourceQuote": "The actual work item was Leo will investigate the slow dashboard queries by 2026-09-12.",
+        "timestamp": "sentence 2",
+        "confidence": 0.91
+      }
+    ]
+  },
+  {
+    "id": "decision_no_owner",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "",
+        "actionType": "record_decision",
+        "description": "Keep OAuth scopes minimal",
+        "deadline": null,
+        "sourceQuote": "After comparing options, we decided to keep OAuth scopes minimal.",
+        "timestamp": "sentence 1",
+        "confidence": 0.95
+      }
+    ]
+  },
+  {
+    "id": "send_without_deadline",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Sarah",
+        "actionType": "send_email",
+        "description": "Send the API status summary to Marco",
+        "deadline": null,
+        "sourceQuote": "Sarah will send the API status summary to Marco.",
+        "timestamp": "sentence 2",
+        "confidence": 0.9
+      }
+    ]
+  },
+  {
+    "id": "schedule_without_iso",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Priya",
+        "actionType": "schedule_event",
+        "description": "Move the benchmark walkthrough",
+        "deadline": "Friday",
+        "sourceQuote": "Priya will move the benchmark walkthrough to Friday.",
+        "timestamp": "sentence 2",
+        "confidence": 0.78
+      }
+    ]
+  },
+  {
+    "id": "back_reference_email",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Nitin",
+        "actionType": "send_email",
+        "description": "Send the duplicate reminder bug summary to Sarah",
+        "deadline": "2026-09-13",
+        "sourceQuote": "Nitin said send the reminder bug summary Ava mentioned to Sarah by 2026-09-13.",
+        "timestamp": "sentence 2",
+        "confidence": 0.84
+      }
+    ]
+  },
+  {
+    "id": "no_hallucination_from_interest",
+    "commitments": []
+  },
+  {
+    "id": "mixed_calendar_issue_email",
+    "commitments": [
+      {
+        "id": "commitment_1",
+        "owner": "Nitin",
+        "actionType": "create_issue",
+        "description": "Investigate the failed CI job",
+        "deadline": "2026-09-14",
+        "sourceQuote": "Nitin will investigate the failed CI job by 2026-09-14.",
+        "timestamp": "sentence 2",
+        "confidence": 0.95
+      },
+      {
+        "id": "commitment_2",
+        "owner": "Ava",
+        "actionType": "schedule_event",
+        "description": "Move the release retro",
+        "deadline": "2026-09-15T14:00:00-05:00",
+        "sourceQuote": "Ava will move the release retro to 2026-09-15T14:00:00-05:00.",
+        "timestamp": "sentence 3",
+        "confidence": 0.95
+      },
+      {
+        "id": "commitment_3",
+        "owner": "Leo",
+        "actionType": "send_email",
+        "description": "Send the launch checklist to Priya",
+        "deadline": "2026-09-14",
+        "sourceQuote": "Leo will send the launch checklist to Priya by 2026-09-14.",
+        "timestamp": "sentence 4",
+        "confidence": 0.95
+      },
+      {
+        "id": "commitment_4",
+        "owner": "",
+        "actionType": "record_decision",
+        "description": "Keep manual approval before drafts",
+        "deadline": null,
+        "sourceQuote": "We decided to keep manual approval before drafts.",
+        "timestamp": "sentence 5",
+        "confidence": 0.96
+      }
+    ]
+  }
+]
