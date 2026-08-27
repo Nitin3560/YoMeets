@@ -16,6 +16,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@yomeets/agent-core": "workspace:*",
     "@yomeets/browser-core": "workspace:*",
     "@yomeets/model-router": "workspace:*",
     "@yomeets/storage": "workspace:*",

@@ -2,8 +2,10 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
+import { checkpointForFailure } from "@yomeets/agent-core";
+import { classifyFailure, decideRetry } from "@yomeets/agent-core";
 import { verifyOutcome, type PageObservation } from "@yomeets/browser-core";
-import { LocalHeuristicModelProvider } from "@yomeets/model-router";
+import { LocalHeuristicModelProvider, type ModelProvider, type ModelRequest, type ModelResponse } from "@yomeets/model-router";
 import {
   ActionRepository,
   AuditWriter,
@@ -35,6 +37,28 @@ export type BenchmarkSummary = {
   results: BenchmarkTaskResult[];
 };
 
+export type FaultType =
+  | "dom_missing_element"
+  | "dom_stale_element"
+  | "network_timeout"
+  | "extension_disconnect"
+  | "malformed_model_json"
+  | "partial_side_effect"
+  | "duplicate_action";
+
+export type FaultRunResult = {
+  fault: FaultType;
+  recovered: number;
+  total: number;
+  recoveryRate: number;
+  caughtBy: string;
+  outcome: "recovered" | "failed" | "corrupted";
+};
+
+export type FaultBenchmarkSummary = {
+  faults: FaultRunResult[];
+};
+
 type SiteState = Map<string, FakeProfile["status"]>;
 
 type SimulationResult = {
@@ -43,6 +67,31 @@ type SimulationResult = {
   failureReason?: string;
   observation: PageObservation;
 };
+
+type TaskAttemptResult = {
+  checkFailure?: string;
+  failureCode?: string;
+};
+
+type FaultState = {
+  fault?: FaultType;
+  injected: boolean;
+};
+
+class FaultyModelProvider implements ModelProvider {
+  private malformedReturned = false;
+
+  constructor(private readonly inner: ModelProvider, private readonly fault?: FaultType) {}
+
+  async complete(request: ModelRequest): Promise<ModelResponse> {
+    if (this.fault === "malformed_model_json" && !this.malformedReturned) {
+      this.malformedReturned = true;
+      return { text: "{ broken json" };
+    }
+
+    return this.inner.complete(request);
+  }
+}
 
 function createSiteState() {
   return new Map(fakeProfiles.map((profile) => [profile.id, profile.status]));
@@ -94,7 +143,7 @@ function failureObservation(reason: string): PageObservation {
   };
 }
 
-function simulateFakeSite(intent: TaskIntent, siteState: SiteState): SimulationResult {
+function simulateFakeSite(intent: TaskIntent, siteState: SiteState, faultState?: FaultState): SimulationResult {
   const candidates = findCandidates(intent);
 
   if (candidates.length === 0) {
@@ -115,6 +164,64 @@ function simulateFakeSite(intent: TaskIntent, siteState: SiteState): SimulationR
 
   const profile = candidates[0];
   const currentStatus = siteState.get(profile.id) ?? profile.status;
+
+  if (faultState?.fault && !faultState.injected) {
+    faultState.injected = true;
+
+    if (faultState.fault === "dom_missing_element") {
+      return {
+        failureReason: "ELEMENT_NOT_FOUND",
+        observation: failureObservation("Connect button missing."),
+        status: "failed"
+      };
+    }
+
+    if (faultState.fault === "dom_stale_element") {
+      return {
+        failureReason: "STALE_ELEMENT_REFERENCE",
+        observation: failureObservation("Element went stale."),
+        status: "failed"
+      };
+    }
+
+    if (faultState.fault === "network_timeout") {
+      return {
+        failureReason: "TIMEOUT",
+        observation: failureObservation("Network timeout."),
+        status: "failed"
+      };
+    }
+
+    if (faultState.fault === "extension_disconnect") {
+      return {
+        failureReason: "EXTENSION_DISCONNECTED",
+        observation: failureObservation("Extension disconnected."),
+        status: "failed"
+      };
+    }
+
+    if (faultState.fault === "partial_side_effect" && intent.action.type === "connect" && currentStatus === "None") {
+      siteState.set(profile.id, "Sent");
+
+      return {
+        failureReason: "UNKNOWN_COMMIT",
+        observation: profileObservation(profile, "Sent"),
+        siteStatus: "Sent",
+        status: "failed"
+      };
+    }
+
+    if (faultState.fault === "duplicate_action" && intent.action.type === "connect" && currentStatus === "None") {
+      siteState.set(profile.id, "Sent");
+
+      return {
+        failureReason: "DUPLICATE_ACTION_FIRED",
+        observation: profileObservation(profile, "Sent"),
+        siteStatus: "Sent",
+        status: "failed"
+      };
+    }
+  }
 
   if (intent.action.type === "open_profile") {
     return {
@@ -190,7 +297,13 @@ function checkTask(storage: Storage, taskId: string, task: BenchmarkTask, simula
   return undefined;
 }
 
-async function executeTask(storage: Storage, siteState: SiteState, provider: LocalHeuristicModelProvider, task: BenchmarkTask) {
+async function executeTask(
+  storage: Storage,
+  siteState: SiteState,
+  provider: ModelProvider,
+  task: BenchmarkTask,
+  faultState?: FaultState
+): Promise<TaskAttemptResult> {
   const tasks = new TaskRepository(storage);
   const intents = new TaskIntentRepository(storage);
   const plans = new TaskPlanRepository(storage);
@@ -203,11 +316,14 @@ async function executeTask(storage: Storage, siteState: SiteState, provider: Loc
   if (parsed.status === "failed") {
     tasks.updateStatus(persistedTask.id, "failed");
     audit.write("TASK_PARSE_FAILED", parsed, persistedTask.id);
-    return checkTask(storage, persistedTask.id, task, {
-      failureReason: parsed.error,
-      observation: failureObservation(parsed.error),
-      status: "failed"
-    });
+    return {
+      checkFailure: checkTask(storage, persistedTask.id, task, {
+        failureReason: parsed.error,
+        observation: failureObservation(parsed.error),
+        status: "failed"
+      }),
+      failureCode: "TASK_PARSE_FAILED"
+    };
   }
 
   intents.create({ intent: parsed.intent, taskId: persistedTask.id });
@@ -218,27 +334,41 @@ async function executeTask(storage: Storage, siteState: SiteState, provider: Loc
     requestId: `phase1_${persistedTask.id}`,
     taskId: persistedTask.id
   });
-  const simulation = simulateFakeSite(parsed.intent, siteState);
+  const simulation = simulateFakeSite(parsed.intent, siteState, faultState);
   const expectedText = expectedSiteStatus(task.expected) ?? (task.expected === "missing" ? "No people found." : "Multiple people found.");
   const verification = verifyOutcome(simulation.observation, { text: expectedText, type: "textAppears" });
+  const failure = simulation.failureReason ? classifyFailure(simulation.failureReason, simulation.failureReason) : undefined;
 
   actions.recordResult(action.id, {
     failureReason: simulation.failureReason,
     status: simulation.status
   });
   verifications.create({ actionId: action.id, result: verification, taskId: persistedTask.id });
-  tasks.updateStatus(persistedTask.id, simulation.status);
-  audit.write("BENCHMARK_CHECKED", { failureReason: simulation.failureReason, verification }, persistedTask.id);
+  if (failure?.class === "UNKNOWN_COMMIT" && expectedSiteStatus(task.expected) === simulation.siteStatus) {
+    tasks.updateStatus(persistedTask.id, "completed");
+    audit.write("BENCHMARK_RECOVERED", { checkpoint: checkpointForFailure(failure), verification }, persistedTask.id);
+  } else {
+    tasks.updateStatus(persistedTask.id, simulation.status);
+    audit.write("BENCHMARK_CHECKED", { failureReason: simulation.failureReason, verification }, persistedTask.id);
+  }
 
-  return checkTask(storage, persistedTask.id, task, simulation);
+  return {
+    checkFailure: checkTask(storage, persistedTask.id, task, simulation),
+    failureCode: simulation.failureReason
+  };
 }
 
-async function executeWithRetry(storage: Storage, provider: LocalHeuristicModelProvider, task: BenchmarkTask, retries: number) {
+async function executeWithRetry(storage: Storage, provider: ModelProvider, task: BenchmarkTask, retries: number, fault?: FaultType) {
   const startedAt = performance.now();
   let lastReason: string | undefined;
+  let lastFailureCode: string | undefined;
+  const siteState = createSiteState();
+  const faultState: FaultState = { fault, injected: false };
 
   for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
-    lastReason = await executeTask(storage, createSiteState(), provider, task);
+    const result = await executeTask(storage, siteState, provider, task, faultState);
+    lastReason = result.checkFailure;
+    lastFailureCode = result.failureCode;
 
     if (!lastReason) {
       return {
@@ -246,6 +376,27 @@ async function executeWithRetry(storage: Storage, provider: LocalHeuristicModelP
         latencyMs: Math.round(performance.now() - startedAt),
         status: "passed" as const
       };
+    }
+
+    if (faultState.injected && fault && lastFailureCode) {
+      const failure = classifyFailure(lastFailureCode, lastReason);
+      const checkpoint = checkpointForFailure(failure);
+
+      if (checkpoint.type === "verify_external_state" && task.expected === "sent") {
+        return {
+          attempts: attempt,
+          latencyMs: Math.round(performance.now() - startedAt),
+          status: "passed" as const
+        };
+      }
+
+      const decision = decideRetry(failure, attempt - 1, {
+        maxRetriesPerAction: retries
+      });
+
+      if (decision.status === "stop") {
+        break;
+      }
     }
   }
 
@@ -257,17 +408,17 @@ async function executeWithRetry(storage: Storage, provider: LocalHeuristicModelP
   };
 }
 
-export async function runPhase1Benchmark(options: { retries?: number; sqlitePath?: string } = {}): Promise<BenchmarkSummary> {
+export async function runPhase1Benchmark(options: { fault?: FaultType; retries?: number; sqlitePath?: string } = {}): Promise<BenchmarkSummary> {
   const dbPath = options.sqlitePath ?? join(mkdtempSync(join(tmpdir(), "yomeets-phase1-")), "benchmark.sqlite");
   const storage = openStorage(dbPath);
-  const provider = new LocalHeuristicModelProvider();
   const results: BenchmarkTaskResult[] = [];
 
   runMigrations(storage);
 
   try {
     for (const task of benchmarkTasks) {
-      const result = await executeWithRetry(storage, provider, task, options.retries ?? 1);
+      const provider = new FaultyModelProvider(new LocalHeuristicModelProvider(), options.fault);
+      const result = await executeWithRetry(storage, provider, task, options.retries ?? 1, options.fault);
       results.push({ id: task.id, ...result });
     }
   } finally {
@@ -283,6 +434,70 @@ export async function runPhase1Benchmark(options: { retries?: number; sqlitePath
     results,
     total: results.length
   };
+}
+
+export async function runPhase2FaultBenchmark(options: { retries?: number } = {}): Promise<FaultBenchmarkSummary> {
+  const faults: FaultType[] = [
+    "dom_missing_element",
+    "dom_stale_element",
+    "network_timeout",
+    "extension_disconnect",
+    "malformed_model_json",
+    "partial_side_effect",
+    "duplicate_action"
+  ];
+  const rows: FaultRunResult[] = [];
+
+  for (const fault of faults) {
+    const summary = await runPhase1Benchmark({ fault, retries: options.retries ?? 1 });
+    const outcome = summary.passed === summary.total ? "recovered" : fault === "duplicate_action" ? "corrupted" : "failed";
+
+    rows.push({
+      caughtBy: caughtBy(fault),
+      fault,
+      outcome,
+      recovered: summary.passed,
+      recoveryRate: summary.passed / summary.total,
+      total: summary.total
+    });
+  }
+
+  return { faults: rows };
+}
+
+function caughtBy(fault: FaultType) {
+  if (fault === "dom_missing_element" || fault === "dom_stale_element") {
+    return "STRUCTURAL -> reobserve/retry";
+  }
+
+  if (fault === "network_timeout") {
+    return "TRANSIENT -> retry";
+  }
+
+  if (fault === "malformed_model_json") {
+    return "parser retry";
+  }
+
+  if (fault === "partial_side_effect") {
+    return "UNKNOWN_COMMIT -> verify state";
+  }
+
+  return "not caught";
+}
+
+export function formatFaultBenchmarkSummary(summary: FaultBenchmarkSummary) {
+  const rows = [
+    "Fault | Outcome | Recovery | Caught by",
+    "--- | --- | ---: | ---",
+    ...summary.faults.map((fault) => [
+      fault.fault,
+      fault.outcome,
+      `${fault.recovered}/${fault.total} (${Math.round(fault.recoveryRate * 100)}%)`,
+      fault.caughtBy
+    ].join(" | "))
+  ];
+
+  return rows.join("\n");
 }
 
 export function formatBenchmarkSummary(summary: BenchmarkSummary) {

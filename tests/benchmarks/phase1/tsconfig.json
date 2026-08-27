@@ -8,6 +8,7 @@
   },
   "include": ["src"],
   "references": [
+    { "path": "../../../packages/agent-core" },
     { "path": "../../../packages/browser-core" },
     { "path": "../../../packages/model-router" },
     { "path": "../../../packages/storage" },

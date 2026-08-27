@@ -114,6 +114,9 @@ importers:
 
   tests/benchmarks/phase1:
     dependencies:
+      '@yomeets/agent-core':
+        specifier: workspace:*
+        version: link:../../../packages/agent-core
       '@yomeets/browser-core':
         specifier: workspace:*
         version: link:../../../packages/browser-core
