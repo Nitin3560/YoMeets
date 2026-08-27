@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { openStorage, runMigrations } from "./database.js";
 import {
   ActionRepository,
+  ExecutionResultRepository,
   MeetingCommitmentRepository,
   MeetingRepository,
   PlannedMeetingActionRepository,
@@ -28,6 +29,7 @@ try {
   const meetings = new MeetingRepository(storage);
   const meetingCommitments = new MeetingCommitmentRepository(storage);
   const plannedMeetingActions = new PlannedMeetingActionRepository(storage);
+  const executionResults = new ExecutionResultRepository(storage);
   const task = tasks.create({
     rawCommand: "Connect with John Smith"
   });
@@ -107,6 +109,15 @@ try {
       passed: true
     }
   });
+  const executionResult = executionResults.create({
+    externalId: "42",
+    meetingId: meeting.id,
+    plannedActionId: planned.id,
+    result: {
+      passed: true
+    },
+    status: "verified"
+  });
 
   const savedPlanned = plannedMeetingActions.findByPlannedActionId(meeting.id, "planned_1");
 
@@ -114,6 +125,7 @@ try {
   assert.equal(savedPlanned?.executionStatus, "verified");
   assert.equal(savedPlanned?.externalId, "42");
   assert.equal(JSON.parse(savedPlanned?.verificationJson ?? "{}").passed, true);
+  assert.equal(JSON.parse(executionResult.resultJson).passed, true);
 } finally {
   storage.sqlite.close();
 }

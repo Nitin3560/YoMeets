@@ -33,3 +33,16 @@ CREATE TABLE IF NOT EXISTS `planned_meeting_actions` (
   FOREIGN KEY (`meeting_id`) REFERENCES `meetings`(`id`) ON UPDATE no action ON DELETE no action,
   FOREIGN KEY (`commitment_id`) REFERENCES `meeting_commitments`(`id`) ON UPDATE no action ON DELETE no action
 );
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `execution_results` (
+  `id` text PRIMARY KEY NOT NULL,
+  `meeting_id` text NOT NULL,
+  `planned_action_id` text NOT NULL,
+  `status` text NOT NULL,
+  `external_id` text,
+  `result_json` text NOT NULL,
+  `created_at` text NOT NULL,
+  `updated_at` text,
+  FOREIGN KEY (`meeting_id`) REFERENCES `meetings`(`id`) ON UPDATE no action ON DELETE no action,
+  FOREIGN KEY (`planned_action_id`) REFERENCES `planned_meeting_actions`(`id`) ON UPDATE no action ON DELETE no action
+);

@@ -4,6 +4,7 @@ import type { Storage } from "./database.js";
 import {
   actions,
   auditEvents,
+  executionResults,
   meetingCommitments,
   meetings,
   plannedMeetingActions,
@@ -271,6 +272,34 @@ export class PlannedMeetingActionRepository {
       .from(plannedMeetingActions)
       .where(and(eq(plannedMeetingActions.meetingId, meetingId), eq(plannedMeetingActions.plannedActionId, plannedActionId)))
       .get();
+  }
+}
+
+export type CreateExecutionResultInput = {
+  meetingId: string;
+  plannedActionId: string;
+  status: string;
+  externalId?: string;
+  result: unknown;
+};
+
+export class ExecutionResultRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateExecutionResultInput) {
+    const result = {
+      createdAt: now(),
+      externalId: input.externalId ?? null,
+      id: randomUUID(),
+      meetingId: input.meetingId,
+      plannedActionId: input.plannedActionId,
+      resultJson: asJson(input.result),
+      status: input.status,
+      updatedAt: null
+    };
+
+    this.storage.db.insert(executionResults).values(result).run();
+    return result;
   }
 }
 

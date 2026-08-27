@@ -99,6 +99,16 @@ export const plannedMeetingActions = sqliteTable("planned_meeting_actions", {
   ...timestamps
 });
 
+export const executionResults = sqliteTable("execution_results", {
+  id: text("id").primaryKey(),
+  meetingId: text("meeting_id").notNull().references(() => meetings.id),
+  plannedActionId: text("planned_action_id").notNull().references(() => plannedMeetingActions.id),
+  status: text("status").notNull(),
+  externalId: text("external_id"),
+  resultJson: text("result_json").notNull(),
+  ...timestamps
+});
+
 export const auditEvents = sqliteTable("audit_events", {
   id: text("id").primaryKey(),
   taskId: text("task_id").references(() => tasks.id),

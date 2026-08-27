@@ -2,6 +2,7 @@ export { openStorage, runMigrations, type Storage } from "./database.js";
 export {
   ActionRepository,
   AuditWriter,
+  ExecutionResultRepository,
   MeetingCommitmentRepository,
   MeetingRepository,
   PlannedMeetingActionRepository,
@@ -10,6 +11,7 @@ export {
   TaskRepository,
   VerificationResultRepository,
   type CreateActionInput,
+  type CreateExecutionResultInput,
   type CreateMeetingCommitmentInput,
   type CreateMeetingInput,
   type CreatePlannedMeetingActionInput,
