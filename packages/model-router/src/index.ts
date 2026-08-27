@@ -1,5 +1,12 @@
 export { LocalHeuristicModelProvider } from "./local-parser.js";
 export {
+  AnthropicModelProvider,
+  OllamaModelProvider,
+  OpenAiModelProvider,
+  type PricedProvider,
+  type ProviderUsage
+} from "./http-providers.js";
+export {
   ScriptedModelProvider,
   type ModelProvider,
   type ModelRequest,

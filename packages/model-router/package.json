@@ -13,7 +13,7 @@
     "build": "tsc -b",
     "dev": "tsc -b --watch",
     "lint": "tsc -b --pretty false",
-    "test": "tsc -b --pretty false && node dist/local-parser.test.js",
+    "test": "tsc -b --pretty false && node dist/local-parser.test.js && node dist/http-providers.test.js",
     "typecheck": "tsc -b"
   }
 }

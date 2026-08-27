@@ -5,6 +5,10 @@ export type ModelRequest = {
 
 export type ModelResponse = {
   text: string;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+  };
 };
 
 export type ModelProvider = {
