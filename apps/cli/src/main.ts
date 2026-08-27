@@ -5,9 +5,11 @@ import { formatTaskChecklist, previewScenario, runPhase0Task } from "@yomeets/ag
 import {
   formatBenchmarkSummary,
   formatFaultBenchmarkSummary,
+  formatModelBenchmarkSummary,
   formatSideEffectSafetySummary,
   runPhase1Benchmark,
   runPhase2FaultBenchmark,
+  runPhase4ModelBenchmark,
   runPhase3SideEffectSafetyProof
 } from "@yomeets/benchmark-phase1";
 import { LocalHeuristicModelProvider, ScriptedModelProvider } from "@yomeets/model-router";
@@ -230,6 +232,12 @@ function runPhase3BenchmarkCommand() {
   stdout.write(`${formatSideEffectSafetySummary(summary)}\n`);
 }
 
+async function runPhase4BenchmarkCommand() {
+  const summary = await runPhase4ModelBenchmark();
+
+  stdout.write(`${formatModelBenchmarkSummary(summary)}\n`);
+}
+
 async function approveTask(args: string[]) {
   const [taskId, ...labelParts] = args;
   const label = labelParts.join(" ").trim();
@@ -286,6 +294,11 @@ async function main() {
     return;
   }
 
+  if (command === "benchmark" && args[0] === "phase4") {
+    await runPhase4BenchmarkCommand();
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
@@ -296,7 +309,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()

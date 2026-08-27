@@ -6,7 +6,17 @@ import { performance } from "node:perf_hooks";
 import { checkpointForFailure } from "@yomeets/agent-core";
 import { classifyFailure, decideRetry } from "@yomeets/agent-core";
 import { verifyOutcome, type PageObservation } from "@yomeets/browser-core";
-import { LocalHeuristicModelProvider, type ModelProvider, type ModelRequest, type ModelResponse } from "@yomeets/model-router";
+import {
+  AnthropicModelProvider,
+  LocalHeuristicModelProvider,
+  OllamaModelProvider,
+  OpenAiModelProvider,
+  type ModelProvider,
+  type ModelRequest,
+  type ModelResponse,
+  type PricedProvider,
+  type ProviderUsage
+} from "@yomeets/model-router";
 import {
   ActionRepository,
   AuditWriter,
@@ -28,6 +38,10 @@ export type BenchmarkTaskResult = {
   attempts: number;
   latencyMs: number;
   failureReason?: string;
+  invalidJson: number;
+  providerErrors: number;
+  providerError?: string;
+  usage: ProviderUsage;
 };
 
 export type BenchmarkSummary = {
@@ -80,6 +94,25 @@ export type SideEffectSafetySummary = {
   rows: SideEffectSafetyRow[];
 };
 
+export type ModelBenchmarkProvider = "local" | "openai" | "anthropic" | "ollama";
+
+export type ModelBenchmarkRow = {
+  provider: string;
+  model: string;
+  available: boolean;
+  successRate: number;
+  invalidJsonRate: number;
+  latencyMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  tokenCostUsd: number;
+  error?: string;
+};
+
+export type ModelBenchmarkSummary = {
+  rows: ModelBenchmarkRow[];
+};
+
 type SiteState = Map<string, FakeProfile["status"]>;
 
 type SimulationResult = {
@@ -111,6 +144,47 @@ class FaultyModelProvider implements ModelProvider {
     }
 
     return this.inner.complete(request);
+  }
+}
+
+class InstrumentedModelProvider implements PricedProvider {
+  invalidJson = 0;
+  providerErrors = 0;
+  providerError?: string;
+  usage: ProviderUsage = {
+    inputTokens: 0,
+    outputTokens: 0
+  };
+
+  constructor(private readonly inner: ModelProvider, readonly id: string, readonly model: string, private readonly priceUsage: (usage: ProviderUsage) => number) {}
+
+  async complete(request: ModelRequest): Promise<ModelResponse> {
+    let response: ModelResponse;
+
+    try {
+      response = await this.inner.complete(request);
+    } catch (error: unknown) {
+      this.providerErrors += 1;
+      this.providerError = error instanceof Error ? error.message : String(error);
+      throw error;
+    }
+
+    if (response.usage) {
+      this.usage.inputTokens += response.usage.inputTokens;
+      this.usage.outputTokens += response.usage.outputTokens;
+    }
+
+    try {
+      JSON.parse(response.text);
+    } catch {
+      this.invalidJson += 1;
+    }
+
+    return response;
+  }
+
+  costForUsage(usage: ProviderUsage) {
+    return this.priceUsage(usage);
   }
 }
 
@@ -379,7 +453,7 @@ async function executeTask(
   };
 }
 
-async function executeWithRetry(storage: Storage, provider: ModelProvider, task: BenchmarkTask, retries: number, fault?: FaultType) {
+async function executeWithRetry(storage: Storage, provider: InstrumentedModelProvider, task: BenchmarkTask, retries: number, fault?: FaultType) {
   const startedAt = performance.now();
   let lastReason: string | undefined;
   let lastFailureCode: string | undefined;
@@ -394,7 +468,11 @@ async function executeWithRetry(storage: Storage, provider: ModelProvider, task:
     if (!lastReason) {
       return {
         attempts: attempt,
+        invalidJson: provider.invalidJson,
         latencyMs: Math.round(performance.now() - startedAt),
+        providerError: provider.providerError,
+        providerErrors: provider.providerErrors,
+        usage: { ...provider.usage },
         status: "passed" as const
       };
     }
@@ -406,7 +484,11 @@ async function executeWithRetry(storage: Storage, provider: ModelProvider, task:
       if (checkpoint.type === "verify_external_state" && task.expected === "sent") {
         return {
           attempts: attempt,
+          invalidJson: provider.invalidJson,
           latencyMs: Math.round(performance.now() - startedAt),
+          providerError: provider.providerError,
+          providerErrors: provider.providerErrors,
+          usage: { ...provider.usage },
           status: "passed" as const
         };
       }
@@ -424,12 +506,32 @@ async function executeWithRetry(storage: Storage, provider: ModelProvider, task:
   return {
     attempts: retries + 1,
     failureReason: lastReason,
+    invalidJson: provider.invalidJson,
     latencyMs: Math.round(performance.now() - startedAt),
+    providerError: provider.providerError,
+    providerErrors: provider.providerErrors,
+    usage: { ...provider.usage },
     status: "failed" as const
   };
 }
 
-export async function runPhase1Benchmark(options: { fault?: FaultType; retries?: number; sqlitePath?: string } = {}): Promise<BenchmarkSummary> {
+type Phase1BenchmarkOptions = {
+  fault?: FaultType;
+  providerFactory?: () => InstrumentedModelProvider;
+  retries?: number;
+  sqlitePath?: string;
+};
+
+function localProviderFactory() {
+  return new InstrumentedModelProvider(
+    new LocalHeuristicModelProvider(),
+    "local",
+    "heuristic-parser",
+    () => 0
+  );
+}
+
+export async function runPhase1Benchmark(options: Phase1BenchmarkOptions = {}): Promise<BenchmarkSummary> {
   const dbPath = options.sqlitePath ?? join(mkdtempSync(join(tmpdir(), "yomeets-phase1-")), "benchmark.sqlite");
   const storage = openStorage(dbPath);
   const results: BenchmarkTaskResult[] = [];
@@ -438,7 +540,13 @@ export async function runPhase1Benchmark(options: { fault?: FaultType; retries?:
 
   try {
     for (const task of benchmarkTasks) {
-      const provider = new FaultyModelProvider(new LocalHeuristicModelProvider(), options.fault);
+      const baseProvider = options.providerFactory?.() ?? localProviderFactory();
+      const provider = new InstrumentedModelProvider(
+        new FaultyModelProvider(baseProvider, options.fault),
+        baseProvider.id,
+        baseProvider.model,
+        (usage) => baseProvider.costForUsage(usage)
+      );
       const result = await executeWithRetry(storage, provider, task, options.retries ?? 1, options.fault);
       results.push({ id: task.id, ...result });
     }
@@ -455,6 +563,98 @@ export async function runPhase1Benchmark(options: { fault?: FaultType; retries?:
     results,
     total: results.length
   };
+}
+
+function sumUsage(results: BenchmarkTaskResult[]) {
+  return results.reduce<ProviderUsage>(
+    (usage, result) => ({
+      inputTokens: usage.inputTokens + result.usage.inputTokens,
+      outputTokens: usage.outputTokens + result.usage.outputTokens
+    }),
+    { inputTokens: 0, outputTokens: 0 }
+  );
+}
+
+function invalidJsonCount(results: BenchmarkTaskResult[]) {
+  return results.reduce((count, result) => count + result.invalidJson, 0);
+}
+
+function providerErrorCount(results: BenchmarkTaskResult[]) {
+  return results.reduce((count, result) => count + result.providerErrors, 0);
+}
+
+function firstProviderError(results: BenchmarkTaskResult[]) {
+  return results.find((result) => result.providerError)?.providerError;
+}
+
+function providerFromName(name: ModelBenchmarkProvider) {
+  if (name === "openai") {
+    const provider = new OpenAiModelProvider();
+    return new InstrumentedModelProvider(provider, provider.id, provider.model, (usage) => provider.costForUsage(usage));
+  }
+
+  if (name === "anthropic") {
+    const provider = new AnthropicModelProvider();
+    return new InstrumentedModelProvider(provider, provider.id, provider.model, (usage) => provider.costForUsage(usage));
+  }
+
+  if (name === "ollama") {
+    const provider = new OllamaModelProvider();
+    return new InstrumentedModelProvider(provider, provider.id, provider.model, (usage) => provider.costForUsage(usage));
+  }
+
+  return localProviderFactory();
+}
+
+export async function runPhase4ModelBenchmark(
+  providers: ModelBenchmarkProvider[] = ["local", "openai", "anthropic", "ollama"]
+): Promise<ModelBenchmarkSummary> {
+  const rows: ModelBenchmarkRow[] = [];
+
+  for (const providerName of providers) {
+    const startedAt = performance.now();
+    let provider: InstrumentedModelProvider | undefined;
+
+    try {
+      provider = providerFromName(providerName);
+
+      const summary = await runPhase1Benchmark({
+        providerFactory: () => providerFromName(providerName),
+        retries: 0
+      });
+      const usage = sumUsage(summary.results);
+      const calls = Math.max(summary.results.length, 1);
+      const errors = providerErrorCount(summary.results);
+
+      rows.push({
+        available: errors === 0,
+        error: firstProviderError(summary.results),
+        inputTokens: usage.inputTokens,
+        invalidJsonRate: invalidJsonCount(summary.results) / calls,
+        latencyMs: Math.round(performance.now() - startedAt),
+        model: provider.model,
+        outputTokens: usage.outputTokens,
+        provider: provider.id,
+        successRate: summary.passRate,
+        tokenCostUsd: provider.costForUsage(usage)
+      });
+    } catch (error: unknown) {
+      rows.push({
+        available: false,
+        error: error instanceof Error ? error.message : String(error),
+        inputTokens: 0,
+        invalidJsonRate: 0,
+        latencyMs: Math.round(performance.now() - startedAt),
+        model: provider?.model ?? providerName,
+        outputTokens: 0,
+        provider: provider?.id ?? providerName,
+        successRate: 0,
+        tokenCostUsd: 0
+      });
+    }
+  }
+
+  return { rows };
 }
 
 export async function runPhase2FaultBenchmark(options: { retries?: number } = {}): Promise<FaultBenchmarkSummary> {
@@ -744,6 +944,26 @@ export function formatSideEffectSafetySummary(summary: SideEffectSafetySummary) 
 
   rows.push("");
   rows.push("External-effect actions covered: connect");
+
+  return rows.join("\n");
+}
+
+export function formatModelBenchmarkSummary(summary: ModelBenchmarkSummary) {
+  const rows = [
+    "Provider | Model | Available | Success | Invalid JSON | Latency | Tokens | Cost USD | Error",
+    "--- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---",
+    ...summary.rows.map((row) => [
+      row.provider,
+      row.model,
+      row.available ? "yes" : "no",
+      `${Math.round(row.successRate * 100)}%`,
+      `${Math.round(row.invalidJsonRate * 100)}%`,
+      `${row.latencyMs}ms`,
+      String(row.inputTokens + row.outputTokens),
+      row.tokenCostUsd.toFixed(6),
+      row.error ?? ""
+    ].join(" | "))
+  ];
 
   return rows.join("\n");
 }

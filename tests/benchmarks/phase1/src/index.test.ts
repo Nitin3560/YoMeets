@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { runPhase1Benchmark, runPhase2FaultBenchmark, runPhase3SideEffectSafetyProof } from "./index.js";
+import {
+  formatModelBenchmarkSummary,
+  runPhase1Benchmark,
+  runPhase2FaultBenchmark,
+  runPhase3SideEffectSafetyProof,
+  runPhase4ModelBenchmark
+} from "./index.js";
 import { benchmarkTasks } from "./tasks.js";
 
 const summary = await runPhase1Benchmark({ retries: 0 });
@@ -37,3 +43,10 @@ assert.deepEqual(
     ["after_action_result_before_task_status", 1, "completed", "Sent"]
   ]
 );
+
+const modelSummary = await runPhase4ModelBenchmark(["local"]);
+
+assert.equal(modelSummary.rows[0]?.available, true);
+assert.equal(modelSummary.rows[0]?.successRate, 1);
+assert.equal(modelSummary.rows[0]?.invalidJsonRate, 0);
+assert.match(formatModelBenchmarkSummary(modelSummary), /Provider/);
