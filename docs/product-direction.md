@@ -47,6 +47,15 @@ Transcript
 
 Browser automation remains useful as a fallback, but supported services should prefer APIs.
 
+## Planning Rule
+
+V1 starts with deterministic commitment-to-action mapping:
+
+- investigation commitments become GitHub issues
+- schedule changes become Calendar updates
+- follow-up messages become Gmail drafts
+- decisions become local decision records
+
 ## Metrics
 
 - commitment extraction precision
