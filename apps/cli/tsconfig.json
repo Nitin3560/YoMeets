@@ -12,6 +12,7 @@
     { "path": "../../packages/model-router" },
     { "path": "../../packages/policy-engine" },
     { "path": "../../packages/shared" },
+    { "path": "../../packages/storage" },
     { "path": "../../packages/task-engine" }
   ]
 }

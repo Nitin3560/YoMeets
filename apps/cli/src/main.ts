@@ -1,9 +1,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { stdout } from "node:process";
-import { formatTaskChecklist, previewScenario } from "@yomeets/agent-core";
-import { ScriptedModelProvider } from "@yomeets/model-router";
+import { formatTaskChecklist, previewScenario, runPhase0Task } from "@yomeets/agent-core";
+import { LocalHeuristicModelProvider, ScriptedModelProvider } from "@yomeets/model-router";
 import { createApprovalRequest } from "@yomeets/policy-engine";
+import { openStorage, runMigrations } from "@yomeets/storage";
 import { normalizeTranscript } from "@yomeets/task-engine";
 import { promptForApproval } from "./approval.js";
 
@@ -183,6 +184,22 @@ async function previewTask(args: string[]) {
   stdout.write(`${preview.command}\n${formatTaskChecklist(preview.trace)}\n`);
 }
 
+async function runPhase0Command(command: string) {
+  const storage = openStorage();
+
+  runMigrations(storage);
+
+  try {
+    const result = await runPhase0Task(storage, new LocalHeuristicModelProvider(), command);
+
+    stdout.write(`Task ${result.taskId}: ${result.status}\n`);
+    stdout.write(`Verification: ${result.verificationPassed ? "passed" : "failed"}\n`);
+    stdout.write(`${result.trace.join(" -> ")}\n`);
+  } finally {
+    storage.sqlite.close();
+  }
+}
+
 async function approveTask(args: string[]) {
   const [taskId, ...labelParts] = args;
   const label = labelParts.join(" ").trim();
@@ -219,6 +236,11 @@ async function main() {
     return;
   }
 
+  if (command === "phase0" && args.join(" ").trim()) {
+    await runPhase0Command(args.join(" ").trim());
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
@@ -229,7 +251,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()

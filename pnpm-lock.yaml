@@ -38,6 +38,9 @@ importers:
       '@yomeets/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@yomeets/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@yomeets/task-engine':
         specifier: workspace:*
         version: link:../../packages/task-engine

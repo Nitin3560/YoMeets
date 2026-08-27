@@ -17,6 +17,7 @@
     "@yomeets/model-router": "workspace:*",
     "@yomeets/policy-engine": "workspace:*",
     "@yomeets/shared": "workspace:*",
+    "@yomeets/storage": "workspace:*",
     "@yomeets/task-engine": "workspace:*"
   },
   "devDependencies": {
