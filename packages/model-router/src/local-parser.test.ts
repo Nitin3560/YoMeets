@@ -19,3 +19,15 @@ const search = JSON.parse((await provider.complete({ system: "Parse", user: "Raw
 assert.equal(search.intent, "search_profile");
 assert.equal(search.action.type, "open_profile");
 assert.equal(search.targets[0].name, "Sarah Patel");
+
+const connectWith = JSON.parse(
+  (await provider.complete({
+    system: "Parse",
+    user: "Raw task: Connect with Omar Johnson at Google from UTA with 'Saw your recruiting work.'"
+  })).text
+);
+
+assert.equal(connectWith.targets[0].name, "Omar Johnson");
+assert.equal(connectWith.targets[0].company, "Google");
+assert.equal(connectWith.targets[0].school, "UTA");
+assert.equal(connectWith.action.message, "Saw your recruiting work.");

@@ -14,10 +14,18 @@ function extractMessage(text: string) {
 
 function extractTarget(text: string) {
   const normalized = text.replace(/\s+/g, " ").trim();
-  const candidateText = normalized.replace(/^(?:search for|connect with|find)\s+/i, "");
+  const candidateText = normalized.match(/^(?:search for|connect with|find)\s+(.+?)(?:\s+(?:at|from|and|with)\b|$)/i)?.[1] ?? normalized;
   const words = candidateText.match(/\b[A-Z][a-z]+\b/g) ?? [];
 
   return words.slice(0, 2).join(" ") || "John Smith";
+}
+
+function extractCompany(text: string) {
+  return text.match(/\bat\s+([A-Z][A-Za-z0-9&.\- ]+?)(?=\s+(?:from|and|with|to)\b|$)/)?.[1]?.trim();
+}
+
+function extractSchool(text: string) {
+  return text.match(/\bfrom\s+([A-Z][A-Za-z0-9&.\- ]+?)(?=\s+(?:and|with|to)\b|$)/)?.[1]?.trim();
 }
 
 export class LocalHeuristicModelProvider implements ModelProvider {
@@ -36,9 +44,9 @@ export class LocalHeuristicModelProvider implements ModelProvider {
         intent: wantsConnect ? "send_connection_request" : "search_profile",
         targets: [
           {
-            company: /google/i.test(command) ? "Google" : undefined,
+            company: extractCompany(command),
             name: targetName,
-            school: /uta/i.test(command) ? "UTA" : undefined
+            school: extractSchool(command)
           }
         ]
       })
