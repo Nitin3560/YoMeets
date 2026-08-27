@@ -13,7 +13,7 @@
     "build": "tsc -b",
     "dev": "tsc -b --watch",
     "lint": "tsc -b --pretty false",
-    "test": "tsc -b --pretty false && node dist/index.test.js && node dist/trace.test.js && node dist/scenario.test.js && node dist/checklist.test.js && node dist/failures.test.js && node dist/retry.test.js && node dist/loop.test.js && node dist/recovery.test.js && node dist/phase0.test.js && node dist/meeting-execution.test.js",
+    "test": "tsc -b --pretty false && node dist/index.test.js && node dist/trace.test.js && node dist/scenario.test.js && node dist/checklist.test.js && node dist/failures.test.js && node dist/retry.test.js && node dist/loop.test.js && node dist/recovery.test.js && node dist/phase0.test.js && node dist/meeting-execution.test.js && node dist/accountability.test.js",
     "typecheck": "tsc -b"
   },
   "dependencies": {

@@ -4,6 +4,12 @@ export { classifyActionResult, classifyFailure, type ClassifiedFailure, type Fai
 export { createLoopSample, detectLoop, type LoopDecision, type LoopSample } from "./loop.js";
 export { runPhase0Task, type Phase0Result } from "./phase0.js";
 export {
+  formatOutstandingCommitments,
+  loadOutstandingCommitments,
+  type CommitmentStatusChecker,
+  type OutstandingCommitment
+} from "./accountability.js";
+export {
   runMeetingExecution,
   type MeetingActionExecution,
   type MeetingActionExecutionStatus,
