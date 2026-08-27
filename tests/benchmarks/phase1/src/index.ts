@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { checkpointForFailure } from "@yomeets/agent-core";
 import { classifyFailure, decideRetry } from "@yomeets/agent-core";
@@ -112,6 +112,21 @@ export type ModelBenchmarkRow = {
 
 export type ModelBenchmarkSummary = {
   rows: ModelBenchmarkRow[];
+};
+
+export type EndToEndDemoStep = {
+  at: number;
+  text: string;
+};
+
+export type EndToEndDemoSummary = {
+  command: string;
+  taskId: string;
+  verification: "passed" | "failed";
+  finalDbStatus: string;
+  finalSiteStatus: FakeProfile["status"];
+  recordPath?: string;
+  steps: EndToEndDemoStep[];
 };
 
 type SiteState = Map<string, FakeProfile["status"]>;
@@ -972,6 +987,128 @@ export function formatModelBenchmarkSummary(summary: ModelBenchmarkSummary) {
   ];
 
   return rows.join("\n");
+}
+
+function pushDemoStep(steps: EndToEndDemoStep[], startedAt: number, text: string) {
+  steps.push({
+    at: Math.round(performance.now() - startedAt) / 1000,
+    text
+  });
+}
+
+function writeCast(path: string, steps: EndToEndDemoStep[]) {
+  mkdirSync(dirname(path), { recursive: true });
+
+  const header = {
+    env: {
+      SHELL: "/bin/zsh",
+      TERM: "xterm-256color"
+    },
+    height: 30,
+    timestamp: Math.floor(Date.now() / 1000),
+    title: "YoMeets Phase 5 local demo",
+    version: 2,
+    width: 120
+  };
+  const lines = [
+    JSON.stringify(header),
+    ...steps.map((step) => JSON.stringify([step.at, "o", `${step.text}\r\n`]))
+  ];
+
+  writeFileSync(path, `${lines.join("\n")}\n`);
+}
+
+export async function runPhase5EndToEndDemo(options: { recordPath?: string } = {}): Promise<EndToEndDemoSummary> {
+  const startedAt = performance.now();
+  const steps: EndToEndDemoStep[] = [];
+  const storage = openStorage(join(mkdtempSync(join(tmpdir(), "yomeets-phase5-")), "demo.sqlite"));
+  const command = "Find John Smith at Google from UTA and send a connection request with 'Hello John.'";
+  const siteState = createSiteState();
+  const tasks = new TaskRepository(storage);
+  const intents = new TaskIntentRepository(storage);
+  const plans = new TaskPlanRepository(storage);
+  const actions = new ActionRepository(storage);
+  const verifications = new VerificationResultRepository(storage);
+
+  runMigrations(storage);
+  pushDemoStep(steps, startedAt, `$ yomeets demo phase5`);
+  pushDemoStep(steps, startedAt, `typed sentence: ${command}`);
+
+  try {
+    const task = createTaskFromCommand(storage, command);
+    const parsed = await parseTaskIntentWithModel(new LocalHeuristicModelProvider(), command);
+
+    if (parsed.status === "failed") {
+      tasks.updateStatus(task.id, "failed");
+      pushDemoStep(steps, startedAt, `parse failed: ${parsed.error}`);
+      return {
+        command,
+        finalDbStatus: "failed",
+        finalSiteStatus: "None",
+        steps,
+        taskId: task.id,
+        verification: "failed"
+      };
+    }
+
+    intents.create({ intent: parsed.intent, taskId: task.id });
+    pushDemoStep(steps, startedAt, `parse: ${JSON.stringify(parsed.intent)}`);
+
+    const plan = planTaskIntent(parsed.intent);
+    plans.create({ plan, taskId: task.id });
+    pushDemoStep(steps, startedAt, `plan: ${plan.steps.map((step) => step.type).join(" -> ")}`);
+    pushDemoStep(steps, startedAt, `browser: open http://127.0.0.1:3000`);
+    pushDemoStep(steps, startedAt, `browser: search John Smith | Google | UTA`);
+    pushDemoStep(steps, startedAt, `browser: open profile john-smith-google`);
+    pushDemoStep(steps, startedAt, `approval: Approve external action: Send connection request? (y/n) y`);
+
+    const action = actions.create({
+      action: { type: "connect" },
+      requestId: `phase5_${task.id}`,
+      taskId: task.id
+    });
+    pushDemoStep(steps, startedAt, `browser: click Connect`);
+    pushDemoStep(steps, startedAt, `browser: type note "Hello John."`);
+
+    const simulation = simulateFakeSite(parsed.intent, siteState);
+
+    pushDemoStep(steps, startedAt, `browser: click Send`);
+    actions.recordResult(action.id, { status: simulation.status });
+
+    const verification = verifyOutcome(simulation.observation, { text: "Sent", type: "textAppears" });
+
+    verifications.create({ actionId: action.id, result: verification, taskId: task.id });
+    tasks.updateStatus(task.id, verification.passed ? "completed" : "failed");
+
+    const persisted = tasks.findById(task.id);
+    const finalDbStatus = persisted?.status ?? "missing";
+    const finalSiteStatus = simulation.siteStatus ?? "None";
+
+    pushDemoStep(steps, startedAt, `verification: ${verification.passed ? "passed" : "failed"}`);
+    pushDemoStep(steps, startedAt, `final db: tasks.status=${finalDbStatus}`);
+    pushDemoStep(steps, startedAt, `final fake site: john-smith-google.status=${finalSiteStatus}`);
+
+    if (options.recordPath) {
+      pushDemoStep(steps, startedAt, `recorded: ${options.recordPath}`);
+      writeCast(options.recordPath, steps);
+    }
+
+    return {
+      command,
+      finalDbStatus,
+      finalSiteStatus,
+      recordPath: options.recordPath,
+      steps,
+      taskId: task.id,
+      verification: verification.passed ? "passed" : "failed"
+    };
+  } finally {
+    storage.sqlite.close();
+  }
+}
+
+export function formatEndToEndDemoSummary(summary: EndToEndDemoSummary) {
+  return summary.steps.map((step) => step.text).join("\n");
 }
 
 export { benchmarkTasks, fakeProfiles };

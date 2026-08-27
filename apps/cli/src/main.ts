@@ -5,10 +5,12 @@ import { formatTaskChecklist, previewScenario, runPhase0Task } from "@yomeets/ag
 import {
   formatBenchmarkSummary,
   formatFaultBenchmarkSummary,
+  formatEndToEndDemoSummary,
   formatModelBenchmarkSummary,
   formatSideEffectSafetySummary,
   runPhase1Benchmark,
   runPhase2FaultBenchmark,
+  runPhase5EndToEndDemo,
   runPhase4ModelBenchmark,
   runPhase3SideEffectSafetyProof
 } from "@yomeets/benchmark-phase1";
@@ -238,6 +240,28 @@ async function runPhase4BenchmarkCommand() {
   stdout.write(`${formatModelBenchmarkSummary(summary)}\n`);
 }
 
+function readRecordPath(args: string[]) {
+  const index = args.indexOf("--record");
+
+  if (index === -1) {
+    return undefined;
+  }
+
+  if (!args[index + 1]) {
+    throw new Error("demo phase5 --record requires a path");
+  }
+
+  return args[index + 1];
+}
+
+async function runPhase5DemoCommand(args: string[]) {
+  const summary = await runPhase5EndToEndDemo({
+    recordPath: readRecordPath(args)
+  });
+
+  stdout.write(`${formatEndToEndDemoSummary(summary)}\n`);
+}
+
 async function approveTask(args: string[]) {
   const [taskId, ...labelParts] = args;
   const label = labelParts.join(" ").trim();
@@ -299,6 +323,11 @@ async function main() {
     return;
   }
 
+  if (command === "demo" && args[0] === "phase5") {
+    await runPhase5DemoCommand(args.slice(1));
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
@@ -309,7 +338,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()

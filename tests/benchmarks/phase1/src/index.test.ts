@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   formatModelBenchmarkSummary,
+  runPhase5EndToEndDemo,
   runPhase1Benchmark,
   runPhase2FaultBenchmark,
   runPhase3SideEffectSafetyProof,
@@ -50,3 +51,10 @@ assert.equal(modelSummary.rows[0]?.available, true);
 assert.equal(modelSummary.rows[0]?.successRate, 1);
 assert.equal(modelSummary.rows[0]?.invalidJsonRate, 0);
 assert.match(formatModelBenchmarkSummary(modelSummary), /Provider/);
+
+const demo = await runPhase5EndToEndDemo();
+
+assert.equal(demo.verification, "passed");
+assert.equal(demo.finalDbStatus, "completed");
+assert.equal(demo.finalSiteStatus, "Sent");
+assert.match(demo.steps.map((step) => step.text).join("\n"), /approval:/);
