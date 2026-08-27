@@ -1,3 +1,4 @@
+export { LocalHeuristicModelProvider } from "./local-parser.js";
 export {
   ScriptedModelProvider,
   type ModelProvider,
