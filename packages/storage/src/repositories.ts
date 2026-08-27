@@ -273,6 +273,16 @@ export class PlannedMeetingActionRepository {
       .where(and(eq(plannedMeetingActions.meetingId, meetingId), eq(plannedMeetingActions.plannedActionId, plannedActionId)))
       .get();
   }
+
+  latestForCommitment(commitmentId: string) {
+    return this.storage.db
+      .select()
+      .from(plannedMeetingActions)
+      .where(eq(plannedMeetingActions.commitmentId, commitmentId))
+      .orderBy(desc(plannedMeetingActions.createdAt))
+      .limit(1)
+      .get();
+  }
 }
 
 export type CreateExecutionResultInput = {

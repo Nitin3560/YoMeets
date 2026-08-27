@@ -21,6 +21,7 @@ type GitHubIssueResponse = {
   html_url?: string;
   id?: number;
   number?: number;
+  state?: string;
   title?: string;
 };
 

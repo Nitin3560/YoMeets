@@ -15,7 +15,13 @@ import {
   runPhase4ModelBenchmark,
   runPhase3SideEffectSafetyProof
 } from "@yomeets/benchmark-phase1";
-import { runMeetingPipeline, type MeetingIntegrationAdapter } from "@yomeets/meeting-engine";
+import {
+  formatMeetingOutstandingCommitments,
+  loadMeetingOutstandingCommitments,
+  loadStoredMeetingCommitments,
+  runMeetingPipeline,
+  type MeetingIntegrationAdapter
+} from "@yomeets/meeting-engine";
 import { GeminiModelProvider, LocalHeuristicModelProvider, OpenAiModelProvider, ScriptedModelProvider } from "@yomeets/model-router";
 import { createApprovalRequest } from "@yomeets/policy-engine";
 import { openStorage, runMigrations } from "@yomeets/storage";
@@ -318,13 +324,25 @@ async function processMeeting(args: string[]) {
   runMigrations(storage);
 
   try {
+    const dryRun = hasFlag(args, "--dry-run");
+    const outstanding = dryRun ? loadStoredMeetingCommitments(storage) : await loadMeetingOutstandingCommitments(storage);
+    const outstandingLines = formatMeetingOutstandingCommitments(outstanding);
+
+    if (outstandingLines.length > 0) {
+      stdout.write("Outstanding from last meeting:\n");
+
+      for (const line of outstandingLines) {
+        stdout.write(`- ${line}\n`);
+      }
+    }
+
     const result = await runMeetingPipeline(storage, {
       approve: async (request) => {
         const approval = await promptForApproval(request);
 
         return approval.status === "approved" ? "yes" : "no";
       },
-      integrations: hasFlag(args, "--dry-run") ? dryRunIntegrations() : undefined,
+      integrations: dryRun ? dryRunIntegrations() : undefined,
       provider: modelProviderFromEnv(),
       title: filePath,
       transcript
