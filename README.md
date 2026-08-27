@@ -29,6 +29,13 @@ pnpm --filter @yomeets/chrome-extension build
 pnpm --filter @yomeets/fake-site-network dev
 ```
 
+## End-to-End Demo
+
+```bash
+pnpm --filter @yomeets/cli build
+node apps/cli/dist/main.js demo phase5 --record artifacts/phase5-demo.cast
+```
+
 ## Local-Only Scope
 
 YoMeets V1 is a local system, not a packaged desktop app. The agent API, task state, browser bridge, SQLite database, approvals, and transcript input all run on the local machine.
