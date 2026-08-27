@@ -47,6 +47,8 @@ Transcript
 
 Browser automation remains useful as a fallback, but supported services should prefer APIs.
 
+The first API clients are intentionally thin: GitHub issue creation, Google Calendar event creation/moves, and Gmail draft creation. OAuth setup and live verification reads come after the action path is stable.
+
 ## Planning Rule
 
 V1 starts with deterministic commitment-to-action mapping:
