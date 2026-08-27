@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { createIssue } from "./github.js";
+import { createDraft } from "./gmail.js";
+import { createOrUpdateEvent } from "./google-calendar.js";
 import { executePlannedMeetingAction, verifyPlannedMeetingAction } from "./executor.js";
 
 const originalFetch = globalThis.fetch;
@@ -61,6 +64,36 @@ try {
   assert.equal(github.provider, "github");
   assert.equal(githubVerification.passed, true);
   assert.equal(memory.provider, "memory");
+
+  const directIssue = await createIssue({
+    body: "Body",
+    owner: "Nitin3560",
+    repo: "YoMeets",
+    title: "Investigate ingestion"
+  }, {
+    token: "gh_test"
+  });
+  const directEvent = await createOrUpdateEvent({
+    calendarId: "primary",
+    description: "Move review",
+    end: "2026-09-04T16:00:00-05:00",
+    eventId: "calendar_1",
+    start: "2026-09-04T15:00:00-05:00",
+    summary: "Review"
+  }, {
+    token: "google_test"
+  });
+  const directDraft = await createDraft({
+    body: "Hello",
+    subject: "Follow up",
+    to: "sarah@example.com"
+  }, {
+    token: "google_test"
+  });
+
+  assert.equal(directIssue.provider, "github");
+  assert.equal(directEvent.provider, "google_calendar");
+  assert.equal(directDraft.provider, "gmail");
 } finally {
   globalThis.fetch = originalFetch;
   delete process.env.GITHUB_TOKEN;

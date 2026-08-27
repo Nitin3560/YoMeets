@@ -8,6 +8,11 @@ export type CreateGitHubIssueInput = {
   assignee?: string;
 };
 
+export type CreateGitHubIssueOptions = Omit<CreateGitHubIssueInput, "owner" | "repo"> & {
+  owner?: string;
+  repo?: string;
+};
+
 type GitHubIssueResponse = {
   assignees?: Array<{
     login?: string;
@@ -55,4 +60,14 @@ export class GitHubIntegration {
   async getIssue(input: Pick<CreateGitHubIssueInput, "owner" | "repo"> & { issueNumber: string }) {
     return getJson<GitHubIssueResponse>(issueUrl(input, input.issueNumber), this.headers());
   }
+}
+
+export async function createIssue(input: CreateGitHubIssueOptions, auth?: AuthConfig) {
+  return new GitHubIntegration(auth).createIssue({
+    assignee: input.assignee,
+    body: input.body,
+    owner: input.owner ?? requireEnv("GITHUB_OWNER"),
+    repo: input.repo ?? requireEnv("GITHUB_REPO"),
+    title: input.title
+  });
 }

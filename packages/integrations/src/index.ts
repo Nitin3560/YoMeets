@@ -1,6 +1,12 @@
-export { GitHubIntegration, type CreateGitHubIssueInput } from "./github.js";
-export { GoogleCalendarIntegration, type CalendarEventInput, type MoveCalendarEventInput } from "./google-calendar.js";
-export { GmailIntegration, type CreateGmailDraftInput } from "./gmail.js";
+export { GitHubIntegration, createIssue, type CreateGitHubIssueInput, type CreateGitHubIssueOptions } from "./github.js";
+export {
+  GoogleCalendarIntegration,
+  createOrUpdateEvent,
+  type CalendarEventInput,
+  type CreateOrUpdateCalendarEventInput,
+  type MoveCalendarEventInput
+} from "./google-calendar.js";
+export { GmailIntegration, createDraft, type CreateGmailDraftInput } from "./gmail.js";
 export {
   executePlannedMeetingAction,
   verifyPlannedMeetingAction,

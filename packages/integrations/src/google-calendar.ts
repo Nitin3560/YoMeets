@@ -18,6 +18,10 @@ export type MoveCalendarEventInput = {
   reason?: string;
 };
 
+export type CreateOrUpdateCalendarEventInput = CalendarEventInput & {
+  eventId?: string;
+};
+
 type CalendarEventResponse = {
   description?: string;
   htmlLink?: string;
@@ -92,4 +96,23 @@ export class GoogleCalendarIntegration {
       Authorization: `Bearer ${this.auth.token}`
     });
   }
+
+  async createOrUpdateEvent(input: CreateOrUpdateCalendarEventInput): Promise<IntegrationResult> {
+    if (input.eventId) {
+      return this.moveEvent({
+        calendarId: input.calendarId,
+        end: input.end,
+        eventId: input.eventId,
+        reason: input.description,
+        start: input.start,
+        timeZone: input.timeZone
+      });
+    }
+
+    return this.createEvent(input);
+  }
+}
+
+export async function createOrUpdateEvent(input: CreateOrUpdateCalendarEventInput, auth?: AuthConfig) {
+  return new GoogleCalendarIntegration(auth).createOrUpdateEvent(input);
 }

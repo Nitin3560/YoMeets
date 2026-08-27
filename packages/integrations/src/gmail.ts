@@ -63,3 +63,7 @@ export class GmailIntegration {
     );
   }
 }
+
+export async function createDraft(input: CreateGmailDraftInput, auth?: AuthConfig) {
+  return new GmailIntegration(auth).createDraft(input);
+}
