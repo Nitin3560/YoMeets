@@ -1,4 +1,4 @@
-import { patchJson, postJson, requireEnv, type AuthConfig, type IntegrationResult } from "./http.js";
+import { getJson, patchJson, postJson, requireEnv, type AuthConfig, type IntegrationResult } from "./http.js";
 
 export type CalendarEventInput = {
   calendarId?: string;
@@ -19,8 +19,13 @@ export type MoveCalendarEventInput = {
 };
 
 type CalendarEventResponse = {
+  description?: string;
   htmlLink?: string;
   id?: string;
+  start?: {
+    dateTime?: string;
+  };
+  summary?: string;
 };
 
 function eventBody(input: Pick<CalendarEventInput, "description" | "end" | "start" | "summary" | "timeZone">) {
@@ -80,5 +85,11 @@ export class GoogleCalendarIntegration {
       raw: event,
       url: event.htmlLink
     };
+  }
+
+  async getEvent(input: { calendarId?: string; eventId: string }) {
+    return getJson<CalendarEventResponse>(calendarUrl(input.calendarId ?? "primary", input.eventId), {
+      Authorization: `Bearer ${this.auth.token}`
+    });
   }
 }

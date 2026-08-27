@@ -1,4 +1,4 @@
-import { postJson, requireEnv, type AuthConfig, type IntegrationResult } from "./http.js";
+import { getJson, postJson, requireEnv, type AuthConfig, type IntegrationResult } from "./http.js";
 
 export type CreateGitHubIssueInput = {
   owner: string;
@@ -9,17 +9,32 @@ export type CreateGitHubIssueInput = {
 };
 
 type GitHubIssueResponse = {
+  assignees?: Array<{
+    login?: string;
+  }>;
+  body?: string;
   html_url?: string;
   id?: number;
   number?: number;
+  title?: string;
 };
 
-function issueUrl(input: CreateGitHubIssueInput) {
-  return `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/issues`;
+function issueUrl(input: Pick<CreateGitHubIssueInput, "owner" | "repo">, issueNumber?: string) {
+  const base = `https://api.github.com/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/issues`;
+
+  return issueNumber ? `${base}/${encodeURIComponent(issueNumber)}` : base;
 }
 
 export class GitHubIntegration {
   constructor(private readonly auth: AuthConfig = { token: requireEnv("GITHUB_TOKEN") }) {}
+
+  private headers() {
+    return {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${this.auth.token}`,
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+  }
 
   async createIssue(input: CreateGitHubIssueInput): Promise<IntegrationResult> {
     const body = {
@@ -27,11 +42,7 @@ export class GitHubIntegration {
       body: input.body,
       title: input.title
     };
-    const issue = await postJson<GitHubIssueResponse>(issueUrl(input), {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${this.auth.token}`,
-      "X-GitHub-Api-Version": "2022-11-28"
-    }, body);
+    const issue = await postJson<GitHubIssueResponse>(issueUrl(input), this.headers(), body);
 
     return {
       externalId: String(issue.number ?? issue.id ?? ""),
@@ -39,5 +50,9 @@ export class GitHubIntegration {
       raw: issue,
       url: issue.html_url
     };
+  }
+
+  async getIssue(input: Pick<CreateGitHubIssueInput, "owner" | "repo"> & { issueNumber: string }) {
+    return getJson<GitHubIssueResponse>(issueUrl(input, input.issueNumber), this.headers());
   }
 }

@@ -38,6 +38,19 @@ export async function postJson<T>(url: string, headers: Record<string, string>, 
   return response.json() as Promise<T>;
 }
 
+export async function getJson<T>(url: string, headers: Record<string, string>): Promise<T> {
+  const response = await fetch(url, {
+    headers,
+    method: "GET"
+  });
+
+  if (!response.ok) {
+    throw new Error(`GET ${url} failed with ${response.status}: ${await response.text()}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export async function patchJson<T>(url: string, headers: Record<string, string>, body: JsonObject): Promise<T> {
   const response = await fetch(url, {
     body: JSON.stringify(body),

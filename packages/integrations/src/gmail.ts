@@ -1,4 +1,4 @@
-import { postJson, requireEnv, type AuthConfig, type IntegrationResult } from "./http.js";
+import { getJson, postJson, requireEnv, type AuthConfig, type IntegrationResult } from "./http.js";
 
 export type CreateGmailDraftInput = {
   userId?: string;
@@ -50,5 +50,16 @@ export class GmailIntegration {
       provider: "gmail",
       raw: draft
     };
+  }
+
+  async getDraft(input: { draftId: string; userId?: string }) {
+    const userId = encodeURIComponent(input.userId ?? "me");
+
+    return getJson<GmailDraftResponse>(
+      `https://gmail.googleapis.com/gmail/v1/users/${userId}/drafts/${encodeURIComponent(input.draftId)}`,
+      {
+        Authorization: `Bearer ${this.auth.token}`
+      }
+    );
   }
 }

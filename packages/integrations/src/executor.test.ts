@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { executePlannedMeetingAction } from "./executor.js";
+import { executePlannedMeetingAction, verifyPlannedMeetingAction } from "./executor.js";
 
 const originalFetch = globalThis.fetch;
 
@@ -8,6 +8,10 @@ try {
     const url = String(input);
 
     if (url.includes("api.github.com")) {
+      if (init?.method === "GET") {
+        return new Response(JSON.stringify({ assignees: [{ login: "nitin" }], number: 7, title: "Investigate ingestion" }));
+      }
+
       return new Response(JSON.stringify({ number: 7 }));
     }
 
@@ -22,7 +26,7 @@ try {
   process.env.GITHUB_TOKEN = "gh_test";
   process.env.GOOGLE_ACCESS_TOKEN = "google_test";
 
-  const github = await executePlannedMeetingAction({
+  const githubAction = {
     commitmentId: "c1",
     id: "a1",
     input: {
@@ -33,7 +37,12 @@ try {
     label: "Create issue",
     requiresApproval: true,
     type: "github.create_issue"
-  }, {
+  } as const;
+  const github = await executePlannedMeetingAction(githubAction, {
+    githubOwner: "Nitin3560",
+    githubRepo: "YoMeets"
+  });
+  const githubVerification = await verifyPlannedMeetingAction(githubAction, github, {
     githubOwner: "Nitin3560",
     githubRepo: "YoMeets"
   });
@@ -50,6 +59,7 @@ try {
   });
 
   assert.equal(github.provider, "github");
+  assert.equal(githubVerification.passed, true);
   assert.equal(memory.provider, "memory");
 } finally {
   globalThis.fetch = originalFetch;
