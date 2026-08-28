@@ -41,3 +41,9 @@ export {
   type ProcessMeetingWindowInput,
   type ProcessMeetingWindowResult
 } from "./window-processor.js";
+export {
+  confirmSpeakerIdentity,
+  resolveSpeakerIdentities,
+  type ConfirmSpeakerIdentityInput,
+  type ResolveSpeakerIdentitiesInput
+} from "./speaker-resolver.js";

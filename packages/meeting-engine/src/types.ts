@@ -72,6 +72,18 @@ export type TranscriptSegment = {
   sequence: number;
 };
 
+export type SpeakerResolutionStatus = "unknown" | "likely" | "confirmed";
+
+export type SpeakerIdentityResolution = {
+  speakerClusterId: string;
+  participantId?: string;
+  participantName?: string;
+  status: SpeakerResolutionStatus;
+  confidence: number;
+  reason: "local_mic" | "direct_address" | "manual" | "unknown";
+  evidenceSegmentIds: string[];
+};
+
 export type MeetingStateSummary = {
   openActions: Array<Pick<MeetingAction, "id" | "description" | "status">>;
   decisions: Array<Pick<MeetingDecision, "id" | "text" | "supersedes">>;

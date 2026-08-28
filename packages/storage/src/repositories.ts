@@ -385,6 +385,22 @@ export class SpeakerClusterRepository {
   listForMeeting(meetingId: string) {
     return this.storage.db.select().from(speakerClusters).where(eq(speakerClusters.meetingId, meetingId)).all();
   }
+
+  findById(id: string) {
+    return this.storage.db.select().from(speakerClusters).where(eq(speakerClusters.id, id)).get();
+  }
+
+  updateResolution(id: string, input: { resolvedParticipantId?: string | null; resolutionStatus: string }) {
+    this.storage.db
+      .update(speakerClusters)
+      .set({
+        resolutionStatus: input.resolutionStatus,
+        resolvedParticipantId: input.resolvedParticipantId ?? null,
+        updatedAt: now()
+      })
+      .where(eq(speakerClusters.id, id))
+      .run();
+  }
 }
 
 export type CreateTranscriptSegmentInput = {
@@ -440,6 +456,17 @@ export class TranscriptSegmentRepository {
       .orderBy(transcriptSegments.sequence)
       .all();
   }
+
+  updateParticipantForSpeakerCluster(speakerClusterId: string, participantId: string) {
+    this.storage.db
+      .update(transcriptSegments)
+      .set({
+        participantId,
+        updatedAt: now()
+      })
+      .where(eq(transcriptSegments.speakerClusterId, speakerClusterId))
+      .run();
+  }
 }
 
 export type CreateCanonicalMeetingActionInput = {
@@ -492,6 +519,18 @@ export class CanonicalMeetingActionRepository {
     this.storage.db
       .update(meetingActions)
       .set(updates)
+      .where(eq(meetingActions.id, id))
+      .run();
+  }
+
+  updateOwnerRef(id: string, ownerRef: unknown, status?: string) {
+    this.storage.db
+      .update(meetingActions)
+      .set({
+        ownerRefJson: asJson(ownerRef),
+        status: status ?? "open",
+        updatedAt: now()
+      })
       .where(eq(meetingActions.id, id))
       .run();
   }
