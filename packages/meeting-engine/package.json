@@ -13,7 +13,7 @@
     "build": "tsc -b",
     "dev": "tsc -b --watch",
     "lint": "tsc -b --pretty false",
-    "test": "tsc -b --pretty false && node dist/extractor.test.js && node dist/fixtures.test.js && node dist/planner.test.js && node dist/accountability.test.js && node dist/ingest.test.js && node dist/window-processor.test.js && node dist/supersession.test.js && node dist/speaker-resolver.test.js && node dist/live-meeting.test.js && node dist/reconciliation.test.js",
+    "test": "tsc -b --pretty false && node dist/extractor.test.js && node dist/fixtures.test.js && node dist/planner.test.js && node dist/accountability.test.js && node dist/ingest.test.js && node dist/window-processor.test.js && node dist/supersession.test.js && node dist/speaker-resolver.test.js && node dist/live-meeting.test.js && node dist/reconciliation.test.js && node dist/memory.test.js",
     "typecheck": "tsc -b"
   },
   "dependencies": {

@@ -183,6 +183,10 @@ export class MeetingRepository {
       .where(eq(meetings.id, id))
       .run();
   }
+
+  listAll() {
+    return this.storage.db.select().from(meetings).orderBy(desc(meetings.createdAt)).all();
+  }
 }
 
 export type CreateMeetingCommitmentInput = {

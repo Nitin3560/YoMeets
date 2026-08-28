@@ -59,3 +59,11 @@ export {
   type EvidenceClip,
   type ReconciliationReport
 } from "./reconciliation.js";
+export {
+  askYoMeets,
+  loadMeetingMemory,
+  searchMeetingMemory,
+  type AskYoMeetsResult,
+  type MeetingMemoryKind,
+  type MeetingMemoryRecord
+} from "./memory.js";
