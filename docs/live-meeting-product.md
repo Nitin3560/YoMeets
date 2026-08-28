@@ -20,6 +20,13 @@ pnpm demo:live-meeting
 Runs the local fixture demo with no external side effects.
 
 ```bash
+pnpm demo:seed-dashboard
+pnpm --filter @yomeets/cli dev
+```
+
+Seeds `yomeets.sqlite` with a demo meeting and starts the local API that the dashboard reads.
+
+```bash
 pnpm demo:transcript-lines
 ```
 

@@ -62,7 +62,7 @@ try {
         }
       ])
     ]),
-    segments: new LiveTranscriptLinePipeline(lines).stream(meeting.id),
+    segments: new LiveTranscriptLinePipeline(lines, meeting.id).stream(meeting.id),
     storage
   });
 

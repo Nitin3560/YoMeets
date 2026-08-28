@@ -192,7 +192,10 @@ export function parseLiveTranscriptLine(line: string): LiveTranscriptLine | unde
 }
 
 export class LiveTranscriptLinePipeline implements LiveAudioPipeline {
-  constructor(private readonly lines: AsyncIterable<string> | Iterable<string>) {}
+  constructor(
+    private readonly lines: AsyncIterable<string> | Iterable<string>,
+    private readonly idPrefix = "line"
+  ) {}
 
   async *stream(meetingId: string): AsyncIterable<DiarizedSegment> {
     let index = 0;
@@ -211,7 +214,7 @@ export class LiveTranscriptLinePipeline implements LiveAudioPipeline {
           confidence: 1,
           endMs: previous.endMs ?? current.startMs,
           final: true,
-          id: `line_seg_${index}`,
+          id: `${this.idPrefix}_seg_${index}`,
           meetingId,
           source: "live_transcript",
           speakerLabel: previous.speakerLabel,
@@ -229,7 +232,7 @@ export class LiveTranscriptLinePipeline implements LiveAudioPipeline {
         confidence: 1,
         endMs: previous.endMs ?? previous.startMs + Math.max(900, previous.text.length * 35),
         final: true,
-        id: `line_seg_${index}`,
+        id: `${this.idPrefix}_seg_${index}`,
         meetingId,
         source: "live_transcript",
         speakerLabel: previous.speakerLabel,

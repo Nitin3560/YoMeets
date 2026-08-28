@@ -100,7 +100,7 @@ const liveTranscript = new LiveTranscriptLinePipeline([
   "00:01 S1: Sarah, can you check the auth timeout?",
   "ignored",
   "00:04 S2: Yeah, I'll fix it tomorrow."
-]);
+], "caption");
 const transcriptSegments = [];
 
 for await (const segment of liveTranscript.stream("meeting_caption_test")) {
@@ -108,5 +108,6 @@ for await (const segment of liveTranscript.stream("meeting_caption_test")) {
 }
 
 assert.equal(transcriptSegments.length, 2);
+assert.equal(transcriptSegments[0]?.id, "caption_seg_1");
 assert.equal(transcriptSegments[0]?.endMs, 4000);
 assert.equal(transcriptSegments[1]?.source, "live_transcript");

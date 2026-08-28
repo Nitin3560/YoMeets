@@ -7,6 +7,7 @@
     "benchmark:meetings": "pnpm build && node --experimental-strip-types scripts/benchmark-meetings.ts",
     "build": "turbo run build",
     "demo:live-meeting": "pnpm build && node --experimental-strip-types scripts/live-meeting-demo.ts",
+    "demo:seed-dashboard": "pnpm build && node --experimental-strip-types scripts/seed-dashboard-state.ts",
     "demo:transcript-lines": "pnpm build && node --experimental-strip-types scripts/live-transcript-lines-demo.ts",
     "dev": "turbo run dev",
     "eval:live-core": "pnpm demo:live-meeting",
