@@ -328,6 +328,15 @@ h1 {
   box-shadow: 0 8px 28px rgba(25, 31, 38, 0.22);
 }
 
+.evidence-player {
+  bottom: 18px;
+  left: 18px;
+  max-width: calc(100vw - 72px);
+  position: fixed;
+  width: 360px;
+  z-index: 20;
+}
+
 @media (max-width: 860px) {
   body {
     grid-template-columns: 1fr;

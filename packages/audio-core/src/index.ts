@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { closeSync, openSync, writeSync } from "node:fs";
 
 export type AudioSourceKind = "microphone" | "system" | "mixed" | "fixture";
 
@@ -91,6 +92,7 @@ export type MacOsFfmpegRecorderOptions = {
   chunkMs?: number;
   device?: string;
   ffmpegPath?: string;
+  outputPath?: string;
   sampleRate?: number;
   source?: Extract<AudioSourceKind, "microphone" | "system" | "mixed">;
   spawnProcess?: (command: string, args: string[]) => AudioProcess;
@@ -146,6 +148,27 @@ function spawnAudioProcess(command: string, args: string[]): AudioProcess {
   });
 }
 
+function wavHeader(byteLength: number, sampleRate: number, channels: number) {
+  const buffer = Buffer.alloc(44);
+  const byteRate = sampleRate * channels * 2;
+
+  buffer.write("RIFF", 0);
+  buffer.writeUInt32LE(36 + byteLength, 4);
+  buffer.write("WAVE", 8);
+  buffer.write("fmt ", 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(channels, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(byteRate, 28);
+  buffer.writeUInt16LE(channels * 2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write("data", 36);
+  buffer.writeUInt32LE(byteLength, 40);
+
+  return buffer;
+}
+
 export function macOsFfmpegArgs(options: MacOsFfmpegRecorderOptions = {}) {
   const channels = options.channels ?? 1;
   const device = options.device ?? "default";
@@ -178,6 +201,7 @@ export class MacOsFfmpegAudioRecorder implements AudioRecorder {
     const sampleRate = this.options.sampleRate ?? 16000;
     const channels = this.options.channels ?? 1;
     const bytesPerMs = (sampleRate * channels * 2) / 1000;
+    const output = this.options.outputPath ? openSync(this.options.outputPath, "w") : undefined;
     const process = (this.options.spawnProcess ?? spawnAudioProcess)(
       this.options.ffmpegPath ?? "ffmpeg",
       macOsFfmpegArgs(this.options)
@@ -185,30 +209,47 @@ export class MacOsFfmpegAudioRecorder implements AudioRecorder {
     this.process = process;
     let cursorMs = 0;
     let index = 0;
+    let recordedBytes = 0;
+
+    if (output !== undefined) {
+      writeSync(output, wavHeader(0, sampleRate, channels));
+    }
 
     void (async () => {
       for await (const _chunk of process.stderr ?? []) {
       }
     })();
 
-    for await (const chunk of process.stdout) {
-      if (chunk.length === 0) {
-        continue;
+    try {
+      for await (const chunk of process.stdout) {
+        if (chunk.length === 0) {
+          continue;
+        }
+
+        if (output !== undefined) {
+          writeSync(output, chunk);
+          recordedBytes += chunk.length;
+        }
+
+        const startMs = Math.round(cursorMs);
+        const durationMs = chunk.length / bytesPerMs;
+        cursorMs += durationMs;
+        index += 1;
+
+        yield {
+          endMs: Math.round(cursorMs),
+          id: `audio_chunk_${index}`,
+          meetingId,
+          pcmBase64: chunk.toString("base64"),
+          source: this.options.source ?? "microphone",
+          startMs
+        };
       }
-
-      const startMs = Math.round(cursorMs);
-      const durationMs = chunk.length / bytesPerMs;
-      cursorMs += durationMs;
-      index += 1;
-
-      yield {
-        endMs: Math.round(cursorMs),
-        id: `audio_chunk_${index}`,
-        meetingId,
-        pcmBase64: chunk.toString("base64"),
-        source: this.options.source ?? "microphone",
-        startMs
-      };
+    } finally {
+      if (output !== undefined) {
+        writeSync(output, wavHeader(recordedBytes, sampleRate, channels), 0, 44, 0);
+        closeSync(output);
+      }
     }
   }
 

@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   AudioProviderNotConfiguredError,
   DeepgramDiarizationProvider,
@@ -231,8 +234,10 @@ assert.deepEqual(macOsFfmpegArgs({ device: "BlackHole 2ch", sampleRate: 16000 })
 let killed = false;
 let recorderCommand = "";
 let recorderArgs: string[] = [];
+const wavPath = join(mkdtempSync(join(tmpdir(), "yomeets-wav-")), "meeting.wav");
 const recorder = new MacOsFfmpegAudioRecorder({
   device: "MacBook Pro Microphone",
+  outputPath: wavPath,
   spawnProcess: (command, args) => {
     recorderCommand = command;
     recorderArgs = args;
@@ -262,6 +267,13 @@ assert.equal(audioChunks[0]?.meetingId, "meeting_audio");
 assert.equal(audioChunks[0]?.startMs, 0);
 assert.equal(audioChunks[0]?.endMs, 100);
 assert.equal(Buffer.from(audioChunks[0]?.pcmBase64 ?? "", "base64").length, 3200);
+
+const wav = readFileSync(wavPath);
+
+assert.equal(wav.subarray(0, 4).toString("ascii"), "RIFF");
+assert.equal(wav.subarray(8, 12).toString("ascii"), "WAVE");
+assert.equal(wav.readUInt32LE(40), 3200);
+assert.equal(wav.length, 3244);
 
 const liveTranscript = new LiveTranscriptLinePipeline([
   "00:01 S1: Sarah, can you check the auth timeout?",

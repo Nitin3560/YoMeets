@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { stdout } from "node:process";
 import { executeLiveMeetingActions, formatTaskChecklist, previewScenario, runMeetingExecution, runPhase0Task } from "@yomeets/agent-core";
 import {
@@ -26,6 +27,7 @@ import {
   evidenceClipsForMeeting,
   extractCommitments,
   formatMeetingOutstandingCommitments,
+  recordMeetingAudio,
   reconcileMeeting,
   runLiveMeeting,
   loadMeetingOutstandingCommitments,
@@ -229,6 +231,13 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     return;
   }
 
+  const meetingAudioMatch = url.pathname.match(/^\/v1\/meetings\/([^/]+)\/audio$/);
+
+  if (method === "GET" && meetingAudioMatch?.[1]) {
+    sendMeetingAudio(response, meetingAudioMatch[1]);
+    return;
+  }
+
   const confirmSpeakerMatch = url.pathname.match(/^\/v1\/meetings\/([^/]+)\/speakers\/([^/]+)\/confirm$/);
 
   if (method === "POST" && confirmSpeakerMatch?.[1] && confirmSpeakerMatch[2]) {
@@ -302,6 +311,30 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   }
 
   sendJson(response, 404, { error: "not found" });
+}
+
+function sendMeetingAudio(response: ServerResponse, meetingId: string) {
+  const storage = openStorage();
+
+  runMigrations(storage);
+
+  try {
+    const meeting = new MeetingRepository(storage).findById(meetingId);
+
+    if (!meeting?.audioPath || !existsSync(meeting.audioPath)) {
+      sendJson(response, 404, { error: "meeting audio not found" });
+      return;
+    }
+
+    response.writeHead(200, {
+      "Accept-Ranges": "bytes",
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "audio/wav"
+    });
+    createReadStream(meeting.audioPath).pipe(response);
+  } finally {
+    storage.sqlite.close();
+  }
 }
 
 function meetingState(storage: ReturnType<typeof openStorage>, meetingId: string) {
@@ -817,8 +850,15 @@ async function liveAudio(args: string[]) {
     title,
     transcript: ""
   });
+  const audioDirectory = join("artifacts", "audio");
+  const audioPath = join(audioDirectory, `${meeting.id}.wav`);
+
+  mkdirSync(audioDirectory, { recursive: true });
+  recordMeetingAudio(storage, meeting.id, audioPath);
+
   const recorder = new MacOsFfmpegAudioRecorder({
     device,
+    outputPath: audioPath,
     source
   });
   const pipeline = new ProviderBackedLiveAudioPipeline(
@@ -832,6 +872,7 @@ async function liveAudio(args: string[]) {
 
   stdout.write(`Meeting ${meeting.id}\n`);
   stdout.write(`Listening on ${source} device: ${device}\n`);
+  stdout.write(`Recording evidence audio: ${audioPath}\n`);
   stdout.write("Press Ctrl+C to stop.\n");
 
   process.once("SIGINT", () => {

@@ -121,6 +121,34 @@ function clipForAction(actionId) {
   return currentState?.clips.find((clip) => clip.segmentId === evidence.segmentId);
 }
 
+function audioPlayer() {
+  let player = document.querySelector("[data-audio-player]");
+
+  if (!player) {
+    player = document.createElement("audio");
+    player.controls = true;
+    player.dataset.audioPlayer = "true";
+    player.className = "evidence-player";
+    document.body.append(player);
+  }
+
+  return player;
+}
+
+async function playClip(clip) {
+  if (!clip?.audioPath || !currentState?.meeting?.id) {
+    text("[data-api-status]", "Audio pending");
+    return;
+  }
+
+  const player = audioPlayer();
+
+  player.src = `${api}/v1/meetings/${currentState.meeting.id}/audio`;
+  player.currentTime = clip.clipStartMs / 1000;
+  await player.play();
+  text("[data-api-status]", `Playing evidence ${time(clip.clipStartMs)}-${time(clip.clipEndMs)}`);
+}
+
 async function postJson(path, body) {
   const response = await fetch(`${api}${path}`, {
     body: JSON.stringify(body),
@@ -151,9 +179,13 @@ document.addEventListener("click", async (event) => {
   try {
     if (action === "clip" && actionId) {
       const clip = clipForAction(actionId);
-      const details = clip ? `${clip.audioPath ?? "audio pending"} ${time(clip.clipStartMs)}-${time(clip.clipEndMs)}` : "No clip available";
 
-      text("[data-api-status]", details);
+      if (!clip) {
+        text("[data-api-status]", "No clip available");
+        return;
+      }
+
+      await playClip(clip);
       return;
     }
 
