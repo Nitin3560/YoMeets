@@ -16,6 +16,7 @@ import {
   runPhase3SideEffectSafetyProof
 } from "@yomeets/benchmark-phase1";
 import {
+  confirmSpeakerIdentity,
   evidenceClipsForMeeting,
   extractCommitments,
   formatMeetingOutstandingCommitments,
@@ -176,6 +177,65 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     return;
   }
 
+  const confirmSpeakerMatch = url.pathname.match(/^\/v1\/meetings\/([^/]+)\/speakers\/([^/]+)\/confirm$/);
+
+  if (method === "POST" && confirmSpeakerMatch?.[1] && confirmSpeakerMatch[2]) {
+    const storage = openStorage();
+
+    runMigrations(storage);
+
+    try {
+      const body = await readJson(request);
+      const speakerClusterId = decodeURIComponent(confirmSpeakerMatch[2]);
+      const participantId = participantIdFromBodyOrCluster(storage, confirmSpeakerMatch[1], speakerClusterId, body);
+      const resolution = confirmSpeakerIdentity(storage, {
+        meetingId: confirmSpeakerMatch[1],
+        participantId,
+        speakerClusterId
+      });
+
+      sendJson(response, 200, {
+        meeting: meetingState(storage, confirmSpeakerMatch[1]),
+        resolution
+      });
+    } finally {
+      storage.sqlite.close();
+    }
+
+    return;
+  }
+
+  const executeActionsMatch = url.pathname.match(/^\/v1\/meetings\/([^/]+)\/actions\/execute$/);
+
+  if (method === "POST" && executeActionsMatch?.[1]) {
+    const storage = openStorage();
+
+    runMigrations(storage);
+
+    try {
+      const body = await readJson(request);
+      const dryRun = !isObject(body) || body.dryRun !== false;
+      const approve = isObject(body) && body.approve === true;
+      const dryRunHooks = dryRun ? dryRunExecution() : undefined;
+      const approvals = approve ? approvalsForOpenCanonicalActions(storage, executeActionsMatch[1]) : {};
+      const result = await executeLiveMeetingActions(storage, {
+        approvals,
+        execute: dryRunHooks?.execute,
+        meetingId: executeActionsMatch[1],
+        verify: dryRunHooks?.verify
+      });
+
+      sendJson(response, 200, {
+        meeting: meetingState(storage, executeActionsMatch[1]),
+        result
+      });
+    } finally {
+      storage.sqlite.close();
+    }
+
+    return;
+  }
+
   if (method === "POST" && url.pathname === "/v1/tasks") {
     const body = await readJson(request);
     const command = commandFromRequestBody(body);
@@ -204,6 +264,41 @@ function meetingState(storage: ReturnType<typeof openStorage>, meetingId: string
     speakerClusters: new SpeakerClusterRepository(storage).listForMeeting(meetingId),
     transcriptSegments: new TranscriptSegmentRepository(storage).listForMeeting(meetingId)
   };
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function participantIdFromBodyOrCluster(
+  storage: ReturnType<typeof openStorage>,
+  meetingId: string,
+  speakerClusterId: string,
+  body: unknown
+) {
+  if (isObject(body) && typeof body.participantId === "string" && body.participantId.trim()) {
+    return body.participantId.trim();
+  }
+
+  const cluster = new SpeakerClusterRepository(storage).findById(speakerClusterId);
+
+  if (!cluster || cluster.meetingId !== meetingId || !cluster.resolvedParticipantId) {
+    throw new Error("participantId is required until the speaker has a likely match");
+  }
+
+  return cluster.resolvedParticipantId;
+}
+
+function approvalsForOpenCanonicalActions(storage: ReturnType<typeof openStorage>, meetingId: string) {
+  const approvals: Record<string, "yes"> = {};
+
+  for (const action of new CanonicalMeetingActionRepository(storage).listForMeeting(meetingId)) {
+    if (action.status === "open") {
+      approvals[`${action.id}_github_issue`] = "yes";
+    }
+  }
+
+  return approvals;
 }
 
 function startServer() {

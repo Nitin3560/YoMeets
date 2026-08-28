@@ -1,4 +1,5 @@
 const api = "http://127.0.0.1:47821";
+let currentState;
 
 function text(selector, value) {
   const element = document.querySelector(selector);
@@ -54,7 +55,10 @@ function renderActions(actions) {
     return;
   }
 
-  container.innerHTML = actions.map((action) => `
+  container.innerHTML = actions.map((action) => {
+    const ownerRef = JSON.parse(action.ownerRefJson);
+
+    return `
     <article class="item ${actionStatusClass(action.status)}">
       <div>
         <p class="label">${action.status.replace(/_/g, " ")}</p>
@@ -62,11 +66,16 @@ function renderActions(actions) {
         <p>${action.deadline ? `Deadline ${action.deadline}` : "No deadline"} - Evidence ready</p>
       </div>
       <div class="buttons">
-        <button data-clip="${action.id}">Play</button>
-        <button>${action.status === "needs_identity" ? "Confirm" : "Approve"}</button>
+        <button data-action="clip" data-action-id="${action.id}">Play</button>
+        <button
+          data-action="${action.status === "needs_identity" ? "confirm" : "execute"}"
+          data-action-id="${action.id}"
+          data-speaker-cluster-id="${ownerRef.speakerClusterId}"
+        >${action.status === "needs_identity" ? "Confirm" : "Approve"}</button>
       </div>
     </article>
-  `).join("");
+  `;
+  }).join("");
 }
 
 async function loadLatestMeeting() {
@@ -77,20 +86,91 @@ async function loadLatestMeeting() {
       throw new Error(`Local API returned ${response.status}`);
     }
 
-    const state = await response.json();
-    const openQuestions = state.questions.filter((question) => question.status === "open");
+    currentState = await response.json();
+    const openQuestions = currentState.questions.filter((question) => question.status === "open");
 
     text("[data-api-status]", "Local API connected");
-    text("[data-meeting-title]", state.meeting?.title ?? "Latest Meeting");
-    text("[data-action-count]", String(state.actions.length));
-    text("[data-decision-count]", String(state.decisions.length));
+    text("[data-meeting-title]", currentState.meeting?.title ?? "Latest Meeting");
+    text("[data-action-count]", String(currentState.actions.length));
+    text("[data-decision-count]", String(currentState.decisions.length));
     text("[data-question-count]", String(openQuestions.length));
-    renderTranscript(state.transcriptSegments);
-    renderActions(state.actions);
+    renderTranscript(currentState.transcriptSegments);
+    renderActions(currentState.actions);
   } catch (_error) {
     text("[data-api-status]", "Local API offline");
   }
 }
+
+function likelyParticipantForSpeaker(speakerClusterId) {
+  return currentState?.speakerClusters.find((cluster) => cluster.id === speakerClusterId)?.resolvedParticipantId;
+}
+
+function clipForAction(actionId) {
+  const action = currentState?.actions.find((item) => item.id === actionId);
+  const evidence = action ? JSON.parse(action.evidenceJson)[0] : undefined;
+
+  if (!evidence) {
+    return undefined;
+  }
+
+  return currentState?.clips.find((clip) => clip.segmentId === evidence.segmentId);
+}
+
+async function postJson(path, body) {
+  const response = await fetch(`${api}${path}`, {
+    body: JSON.stringify(body),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json();
+}
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-action]");
+
+  if (!button || !currentState?.meeting?.id) {
+    return;
+  }
+
+  const action = button.dataset.action;
+  const actionId = button.dataset.actionId;
+  const speakerClusterId = button.dataset.speakerClusterId;
+
+  try {
+    if (action === "clip" && actionId) {
+      const clip = clipForAction(actionId);
+      const details = clip ? `${clip.audioPath ?? "audio pending"} ${time(clip.clipStartMs)}-${time(clip.clipEndMs)}` : "No clip available";
+
+      text("[data-api-status]", details);
+      return;
+    }
+
+    if (action === "confirm" && speakerClusterId) {
+      await postJson(`/v1/meetings/${currentState.meeting.id}/speakers/${encodeURIComponent(speakerClusterId)}/confirm`, {
+        participantId: likelyParticipantForSpeaker(speakerClusterId)
+      });
+      await loadLatestMeeting();
+      return;
+    }
+
+    if (action === "execute") {
+      await postJson(`/v1/meetings/${currentState.meeting.id}/actions/execute`, {
+        approve: true,
+        dryRun: true
+      });
+      await loadLatestMeeting();
+    }
+  } catch (error) {
+    text("[data-api-status]", error instanceof Error ? error.message : "Action failed");
+  }
+});
 
 loadLatestMeeting();
 setInterval(loadLatestMeeting, 3000);
