@@ -83,6 +83,8 @@ importers:
         specifier: ^24.3.0
         version: 24.13.3
 
+  packages/audio-core: {}
+
   packages/browser-core: {}
 
   packages/integrations:

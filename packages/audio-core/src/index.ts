@@ -1,0 +1,88 @@
+export type AudioSourceKind = "microphone" | "system" | "mixed" | "fixture";
+
+export type AudioChunk = {
+  id: string;
+  meetingId: string;
+  source: AudioSourceKind;
+  startMs: number;
+  endMs: number;
+  path?: string;
+  pcmBase64?: string;
+};
+
+export type SttSegment = {
+  id: string;
+  meetingId: string;
+  startMs: number;
+  endMs: number;
+  text: string;
+  final: boolean;
+};
+
+export type DiarizedSegment = SttSegment & {
+  speakerLabel: string;
+  confidence: number;
+  source: "live_audio" | "fixture";
+};
+
+export type AudioRecorder = {
+  start(meetingId: string): AsyncIterable<AudioChunk>;
+  stop(): Promise<void>;
+};
+
+export type StreamingSttProvider = {
+  transcribe(chunks: AsyncIterable<AudioChunk>): AsyncIterable<SttSegment>;
+};
+
+export type StreamingDiarizationProvider = {
+  diarize(segments: AsyncIterable<SttSegment>): AsyncIterable<DiarizedSegment>;
+};
+
+export type SimulatedTurn = {
+  speakerLabel: string;
+  text: string;
+  durationMs?: number;
+  pauseAfterMs?: number;
+};
+
+async function* turnsToStt(meetingId: string, turns: SimulatedTurn[]): AsyncIterable<SttSegment & { speakerLabel: string }> {
+  let cursorMs = 0;
+
+  for (let index = 0; index < turns.length; index += 1) {
+    const turn = turns[index];
+
+    if (!turn) {
+      continue;
+    }
+
+    const durationMs = turn.durationMs ?? Math.max(900, turn.text.length * 35);
+    const startMs = cursorMs;
+    const endMs = startMs + durationMs;
+
+    yield {
+      endMs,
+      final: true,
+      id: `sim_seg_${index + 1}`,
+      meetingId,
+      speakerLabel: turn.speakerLabel,
+      startMs,
+      text: turn.text
+    };
+
+    cursorMs = endMs + (turn.pauseAfterMs ?? 250);
+  }
+}
+
+export class FixtureAudioPipeline {
+  constructor(private readonly turns: SimulatedTurn[]) {}
+
+  async *stream(meetingId: string): AsyncIterable<DiarizedSegment> {
+    for await (const segment of turnsToStt(meetingId, this.turns)) {
+      yield {
+        ...segment,
+        confidence: 1,
+        source: "fixture"
+      };
+    }
+  }
+}
