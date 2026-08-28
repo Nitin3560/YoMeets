@@ -47,3 +47,8 @@ export {
   type ConfirmSpeakerIdentityInput,
   type ResolveSpeakerIdentitiesInput
 } from "./speaker-resolver.js";
+export {
+  runLiveMeeting,
+  type LiveMeetingEvent,
+  type RunLiveMeetingInput
+} from "./live-meeting.js";

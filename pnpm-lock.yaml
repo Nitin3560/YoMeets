@@ -99,6 +99,9 @@ importers:
 
   packages/meeting-engine:
     dependencies:
+      '@yomeets/audio-core':
+        specifier: workspace:*
+        version: link:../audio-core
       '@yomeets/model-router':
         specifier: workspace:*
         version: link:../model-router

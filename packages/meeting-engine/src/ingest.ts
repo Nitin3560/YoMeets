@@ -55,7 +55,7 @@ export type MeetingWindowTriggerConfig = {
 export type MaybeProcessMeetingWindowInput = {
   meetingId: string;
   state: MeetingWindowTriggerState;
-  currentState: MeetingStateSummary;
+  currentState?: MeetingStateSummary;
   provider: ModelProvider;
   nowMs?: number;
   config?: MeetingWindowTriggerConfig;
@@ -138,6 +138,38 @@ function questionFromRow(row: ReturnType<MeetingQuestionRepository["create"]>): 
     meetingId: row.meetingId,
     status: row.status as MeetingQuestion["status"],
     text: row.text
+  };
+}
+
+export function loadMeetingStateSummary(storage: Storage, meetingId: string): MeetingStateSummary {
+  const actions = new CanonicalMeetingActionRepository(storage)
+    .listForMeeting(meetingId)
+    .filter((action) => action.status !== "completed")
+    .map((action) => ({
+      description: action.description,
+      id: action.id,
+      status: action.status as MeetingAction["status"]
+    }));
+  const decisions = new MeetingDecisionRepository(storage)
+    .listForMeeting(meetingId)
+    .map((decision) => ({
+      id: decision.id,
+      supersedes: decision.supersedes ?? undefined,
+      text: decision.text
+    }));
+  const questions = new MeetingQuestionRepository(storage)
+    .listForMeeting(meetingId)
+    .filter((question) => question.status === "open")
+    .map((question) => ({
+      id: question.id,
+      status: question.status as MeetingQuestion["status"],
+      text: question.text
+    }));
+
+  return {
+    decisions,
+    openActions: actions,
+    openQuestions: questions
   };
 }
 
@@ -258,7 +290,7 @@ export async function maybeProcessMeetingWindow(
 
   const processed = await processMeetingWindow({
     afterSequence: input.state.lastProcessedSequence,
-    currentState: input.currentState,
+    currentState: input.currentState ?? loadMeetingStateSummary(storage, input.meetingId),
     meetingId: input.meetingId,
     provider: input.provider,
     segments
