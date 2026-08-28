@@ -8,6 +8,7 @@
     "build": "turbo run build",
     "demo:live-meeting": "pnpm build && node --experimental-strip-types scripts/live-meeting-demo.ts",
     "dev": "turbo run dev",
+    "eval:live-core": "pnpm demo:live-meeting",
     "lint": "turbo run lint",
     "smoke:meeting-window": "pnpm build && node --experimental-strip-types scripts/smoke-meeting-window.ts",
     "test": "turbo run test",

@@ -352,6 +352,32 @@ function hasFlag(args: string[], flag: string) {
   return args.includes(flag);
 }
 
+function configured(name: string) {
+  return process.env[name] ? "configured" : "missing";
+}
+
+function runDoctor() {
+  const checks = [
+    ["Model: Gemini", configured("GEMINI_API_KEY")],
+    ["Model: OpenAI", configured("OPENAI_API_KEY")],
+    ["GitHub token", configured("GITHUB_TOKEN")],
+    ["GitHub owner", configured("GITHUB_OWNER")],
+    ["GitHub repo", configured("GITHUB_REPO")],
+    ["Google client id", configured("GOOGLE_CLIENT_ID")],
+    ["Google client secret", configured("GOOGLE_CLIENT_SECRET")],
+    ["Google refresh token", configured("GOOGLE_REFRESH_TOKEN")],
+    ["Postgres memory", configured("YOMEETS_POSTGRES_URL")],
+    ["STT provider", configured("YOMEETS_STT_PROVIDER")],
+    ["Diarization provider", configured("YOMEETS_DIARIZATION_PROVIDER")]
+  ];
+
+  stdout.write("YoMeets doctor\n");
+
+  for (const [label, status] of checks) {
+    stdout.write(`${label}: ${status}\n`);
+  }
+}
+
 function modelProviderFromEnv() {
   if (process.env.GEMINI_API_KEY) {
     return new GeminiModelProvider();
@@ -579,6 +605,11 @@ async function main() {
     return;
   }
 
+  if (command === "doctor") {
+    runDoctor();
+    return;
+  }
+
   if (command === "run" && args.join(" ").trim()) {
     await submitTask(args.join(" ").trim());
     return;
@@ -639,7 +670,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets process-meeting notes.txt --dry-run\n  yomeets execute-live-actions <meetingId> --dry-run --yes\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets doctor\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets process-meeting notes.txt --dry-run\n  yomeets execute-live-actions <meetingId> --dry-run --yes\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()

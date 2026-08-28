@@ -16,3 +16,20 @@ This is the honest path from the current local core to a finished YoMeets produc
 12. Recovery and reliability: add idempotency, retry queues, crash recovery, duplicate operation prevention, and offline provider behavior.
 13. Real evaluation: measure latency, diarization accuracy, extraction precision and recall, execution success, reconciliation correction rate, and citation quality.
 14. Final UX polish and demo: record a real or staged meeting and show listening, live extraction, approval, verified external action, evidence playback, and cross-meeting answers.
+
+## Current Local Evaluation Command
+
+```bash
+pnpm eval:live-core
+```
+
+This runs the deterministic live-core demo and prints:
+
+- live event count
+- extracted actions
+- detected decision supersession
+- unresolved identity count
+- evidence clip count
+- Ask YoMeets answer and citations
+
+It is a repeatable local harness, not a substitute for the later real-meeting evaluation suite.
