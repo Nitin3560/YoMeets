@@ -1,4 +1,4 @@
-import type { ModelProvider } from "@yomeets/model-router";
+import { GeminiEmbeddingProvider, type EmbeddingProvider, type ModelProvider } from "@yomeets/model-router";
 import postgres, { type Sql } from "postgres";
 import {
   CanonicalMeetingActionRepository,
@@ -49,10 +49,25 @@ export class LocalMeetingMemoryIndex implements MeetingMemoryIndex {
   }
 }
 
+class HashEmbeddingProvider implements EmbeddingProvider {
+  readonly dimensions = 768;
+
+  async embed(text: string): Promise<number[]> {
+    return embedText(text, this.dimensions);
+  }
+}
+
+function defaultEmbeddingProvider(): EmbeddingProvider {
+  return process.env.GEMINI_API_KEY ? new GeminiEmbeddingProvider() : new HashEmbeddingProvider();
+}
+
 export class PostgresPgvectorMemoryIndex implements MeetingMemoryIndex {
   private readonly sql?: Sql;
 
-  constructor(private readonly connectionString = process.env.YOMEETS_POSTGRES_URL) {
+  constructor(
+    private readonly connectionString = process.env.YOMEETS_POSTGRES_URL,
+    private readonly embeddings = defaultEmbeddingProvider()
+  ) {
     this.sql = connectionString ? postgres(connectionString, { max: 1, onnotice: () => undefined }) : undefined;
   }
 
@@ -68,8 +83,8 @@ export class PostgresPgvectorMemoryIndex implements MeetingMemoryIndex {
         text: string;
       }>>`
         select id, meeting_id, kind, text, evidence
-        from yomeets_memory
-        order by embedding <=> ${vectorLiteral(embedText(query))}::vector
+        from yomeets_memory_embeddings
+        order by embedding <=> ${vectorLiteral(await this.embeddings.embed(query))}::vector
         limit ${limit}
       `;
     });
@@ -90,14 +105,14 @@ export class PostgresPgvectorMemoryIndex implements MeetingMemoryIndex {
 
     for (const record of records) {
       await sql`
-        insert into yomeets_memory (id, meeting_id, kind, text, evidence, embedding)
+        insert into yomeets_memory_embeddings (id, meeting_id, kind, text, evidence, embedding)
         values (
           ${record.id},
           ${record.meetingId},
           ${record.kind},
           ${record.text},
           ${sql.json(record.evidence)},
-          ${vectorLiteral(embedText(record.text))}::vector
+          ${vectorLiteral(await this.embeddings.embed(record.text))}::vector
         )
         on conflict (id) do update set
           meeting_id = excluded.meeting_id,
@@ -132,6 +147,24 @@ export class PostgresPgvectorMemoryIndex implements MeetingMemoryIndex {
       using ivfflat (embedding vector_cosine_ops)
       with (lists = 8)
     `;
+    await sql`
+      create table if not exists yomeets_memory_embeddings (
+        id text primary key,
+        meeting_id text not null,
+        kind text not null,
+        text text not null,
+        evidence jsonb not null,
+        embedding vector(768) not null,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now()
+      )
+    `;
+    await sql`
+      create index if not exists yomeets_memory_embeddings_idx
+      on yomeets_memory_embeddings
+      using ivfflat (embedding vector_cosine_ops)
+      with (lists = 16)
+    `;
   }
 
   async close(): Promise<void> {
@@ -147,8 +180,8 @@ export class PostgresPgvectorMemoryIndex implements MeetingMemoryIndex {
   }
 }
 
-function embedText(text: string) {
-  const vector = new Array(32).fill(0) as number[];
+function embedText(text: string, dimensions = 768) {
+  const vector = new Array(dimensions).fill(0) as number[];
   const tokens = text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 
   for (const token of tokens) {

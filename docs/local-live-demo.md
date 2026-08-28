@@ -84,3 +84,5 @@ pnpm smoke:postgres-memory
 ```
 
 The smoke command creates the pgvector table, upserts local meeting memory, and searches it through Postgres.
+
+When `GEMINI_API_KEY` is present, Postgres memory uses `gemini-embedding-2` with 768-dimensional vectors. Without a key, it falls back to a local deterministic vector for development only.

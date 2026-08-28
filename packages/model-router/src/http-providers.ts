@@ -1,4 +1,4 @@
-import type { ModelProvider, ModelRequest, ModelResponse } from "./provider.js";
+import type { EmbeddingProvider, ModelProvider, ModelRequest, ModelResponse } from "./provider.js";
 
 export type ProviderUsage = {
   inputTokens: number;
@@ -53,6 +53,12 @@ type GeminiResponse = {
   usageMetadata?: {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
+  };
+};
+
+type GeminiEmbeddingResponse = {
+  embedding?: {
+    values?: number[];
   };
 };
 
@@ -284,5 +290,52 @@ export class GeminiModelProvider implements PricedProvider {
 
   costForUsage(usage: ProviderUsage) {
     return price(usage.inputTokens, usage.outputTokens, 0.3, 2.5);
+  }
+}
+
+export class GeminiEmbeddingProvider implements EmbeddingProvider {
+  readonly dimensions: number;
+
+  constructor(
+    readonly model = process.env.GEMINI_EMBEDDING_MODEL ?? "gemini-embedding-2",
+    private readonly apiKey = requireEnv("GEMINI_API_KEY"),
+    dimensions = Number.parseInt(process.env.GEMINI_EMBEDDING_DIMENSIONS ?? "768", 10)
+  ) {
+    this.dimensions = dimensions;
+  }
+
+  async embed(text: string): Promise<number[]> {
+    const url = new URL(`https://generativelanguage.googleapis.com/v1beta/models/${this.model}:embedContent`);
+
+    url.searchParams.set("key", this.apiKey);
+
+    const response = await fetch(url, {
+      body: JSON.stringify({
+        content: {
+          parts: [{ text }]
+        },
+        embedContentConfig: {
+          outputDimensionality: this.dimensions,
+          taskType: "RETRIEVAL_DOCUMENT"
+        }
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini embedding request failed with ${response.status}: ${await response.text()}`);
+    }
+
+    const body = await response.json() as GeminiEmbeddingResponse;
+    const values = body.embedding?.values;
+
+    if (!values || values.length === 0) {
+      throw new Error("Gemini embedding response did not include values");
+    }
+
+    return values;
   }
 }

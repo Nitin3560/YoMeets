@@ -15,6 +15,11 @@ export type ModelProvider = {
   complete(request: ModelRequest): Promise<ModelResponse>;
 };
 
+export type EmbeddingProvider = {
+  readonly dimensions: number;
+  embed(text: string): Promise<number[]>;
+};
+
 export class ScriptedModelProvider implements ModelProvider {
   private index = 0;
 

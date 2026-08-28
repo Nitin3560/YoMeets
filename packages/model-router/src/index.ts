@@ -1,6 +1,7 @@
 export { LocalHeuristicModelProvider } from "./local-parser.js";
 export {
   AnthropicModelProvider,
+  GeminiEmbeddingProvider,
   GeminiModelProvider,
   OllamaModelProvider,
   OpenAiModelProvider,
@@ -9,6 +10,7 @@ export {
 } from "./http-providers.js";
 export {
   ScriptedModelProvider,
+  type EmbeddingProvider,
   type ModelProvider,
   type ModelRequest,
   type ModelResponse
