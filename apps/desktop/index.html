@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>YoMeets</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="mark"></span>
+        <strong>YoMeets</strong>
+      </div>
+      <button class="start-button"><span></span> Start Meeting Assistant</button>
+      <nav>
+        <a class="active" href="#">Live Meeting</a>
+        <a href="#">History</a>
+        <a href="#">Ask YoMeets</a>
+        <a href="#">Integrations</a>
+        <a href="#">Settings</a>
+      </nav>
+      <section class="mini-panel">
+        <h2>Integrations</h2>
+        <p><span class="ok"></span> GitHub connected</p>
+        <p><span class="ok"></span> Calendar connected</p>
+        <p><span class="warn"></span> Gmail draft approval</p>
+      </section>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Engineering Sync</p>
+          <h1>Live Meeting Intelligence</h1>
+        </div>
+        <div class="listening"><span></span> Listening</div>
+      </header>
+
+      <section class="metrics">
+        <article>
+          <strong>4</strong>
+          <span>actions</span>
+        </article>
+        <article>
+          <strong>3</strong>
+          <span>decisions</span>
+        </article>
+        <article>
+          <strong>2</strong>
+          <span>open questions</span>
+        </article>
+        <article>
+          <strong>1.8s</strong>
+          <span>live latency</span>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <section class="feed">
+          <div class="section-head">
+            <h2>Live Transcript</h2>
+            <button title="Open evidence clips">Clips</button>
+          </div>
+          <article class="turn">
+            <span>S1</span>
+            <p>Sarah, can you check the auth timeout?</p>
+            <time>00:18</time>
+          </article>
+          <article class="turn">
+            <span>S2</span>
+            <p>Yeah, I'll fix it tomorrow.</p>
+            <time>00:22</time>
+          </article>
+          <article class="turn">
+            <span>S3</span>
+            <p>Let's keep Redis for now.</p>
+            <time>00:41</time>
+          </article>
+          <article class="turn new">
+            <span>S1</span>
+            <p>Actually, let's switch to Postgres, Redis isn't working out.</p>
+            <time>01:06</time>
+          </article>
+        </section>
+
+        <section class="live-state">
+          <div class="tabs">
+            <button class="active">Actions</button>
+            <button>Decisions</button>
+            <button>Questions</button>
+          </div>
+
+          <article class="item needs">
+            <div>
+              <p class="label">Needs identity</p>
+              <h3>Fix auth timeout</h3>
+              <p>Owner: likely Sarah - Due tomorrow</p>
+            </div>
+            <div class="buttons">
+              <button>Play</button>
+              <button>Confirm</button>
+            </div>
+          </article>
+
+          <article class="item approval">
+            <div>
+              <p class="label">Ready for approval</p>
+              <h3>Create GitHub issue: Move session storage to Postgres</h3>
+              <p>Owner: Nitin - Deadline Friday - Evidence 01:06</p>
+            </div>
+            <div class="buttons">
+              <button>Edit</button>
+              <button>Approve</button>
+            </div>
+          </article>
+
+          <article class="item done">
+            <div>
+              <p class="label">Verified</p>
+              <h3>GitHub issue #47 created</h3>
+              <p>External state confirmed after execution.</p>
+            </div>
+            <button>Open</button>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <div class="overlay-dot" title="YoMeets is listening"></div>
+  </body>
+</html>
