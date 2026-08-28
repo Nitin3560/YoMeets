@@ -221,6 +221,32 @@ for await (const segment of diarizer.diarize((async function* () {
 assert.equal(deepgramDiarized[0]?.speakerLabel, "S3");
 assert.equal(deepgramDiarized[0]?.source, "live_audio");
 
+const failingDeepgram = new DeepgramStreamingSttProvider({
+  apiKey: "dg_test",
+  webSocketFactory: () => ({
+    close() {},
+    onerror: undefined,
+    onmessage: undefined,
+    send() {
+      this.onerror?.(new Error("socket closed"));
+    }
+  })
+});
+
+await assert.rejects(async () => {
+  for await (const _segment of failingDeepgram.transcribe((async function* () {
+    yield {
+      endMs: 1000,
+      id: "audio_error",
+      meetingId: "meeting_deepgram",
+      pcmBase64: Buffer.from("bad pcm").toString("base64"),
+      source: "mixed",
+      startMs: 0
+    };
+  })())) {
+  }
+}, /socket closed/);
+
 assert.deepEqual(macOsFfmpegArgs({ device: "BlackHole 2ch", sampleRate: 16000 }).slice(0, 7), [
   "-hide_banner",
   "-loglevel",

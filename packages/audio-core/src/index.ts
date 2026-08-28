@@ -296,22 +296,37 @@ export class NotConfiguredDiarizationProvider implements StreamingDiarizationPro
 
 class AsyncQueue<T> {
   private closed = false;
+  private error?: unknown;
   private readonly pending: T[] = [];
-  private readonly waiters: Array<(value: IteratorResult<T>) => void> = [];
+  private readonly waiters: Array<{
+    reject: (error: unknown) => void;
+    resolve: (value: IteratorResult<T>) => void;
+  }> = [];
 
   close() {
     this.closed = true;
 
     while (this.waiters.length > 0) {
-      this.waiters.shift()?.({ done: true, value: undefined });
+      const waiter = this.waiters.shift();
+
+      if (this.error) {
+        waiter?.reject(this.error);
+      } else {
+        waiter?.resolve({ done: true, value: undefined });
+      }
     }
+  }
+
+  fail(error: unknown) {
+    this.error = error;
+    this.close();
   }
 
   push(value: T) {
     const waiter = this.waiters.shift();
 
     if (waiter) {
-      waiter({ done: false, value });
+      waiter.resolve({ done: false, value });
       return;
     }
 
@@ -326,10 +341,14 @@ class AsyncQueue<T> {
     }
 
     if (this.closed) {
+      if (this.error) {
+        throw this.error;
+      }
+
       return { done: true, value: undefined };
     }
 
-    return new Promise((resolve) => this.waiters.push(resolve));
+    return new Promise((resolve, reject) => this.waiters.push({ reject, resolve }));
   }
 }
 
@@ -414,15 +433,7 @@ export class DeepgramStreamingSttProvider implements StreamingSttProvider {
 
     const close = () => queue.close();
     const fail = (event?: unknown) => {
-      queue.push({
-        endMs: 0,
-        final: true,
-        id: "deepgram_error",
-        meetingId: "unknown",
-        startMs: 0,
-        text: `Deepgram stream error: ${String(event)}`
-      });
-      queue.close();
+      queue.fail(event instanceof Error ? event : new Error(`Deepgram stream error: ${String(event)}`));
     };
     const onMessage = (message: { data?: unknown }) => {
       try {
