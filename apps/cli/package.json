@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@yomeets/agent-core": "workspace:*",
+    "@yomeets/audio-core": "workspace:*",
     "@yomeets/benchmark-phase1": "workspace:*",
     "@yomeets/integrations": "workspace:*",
     "@yomeets/meeting-engine": "workspace:*",

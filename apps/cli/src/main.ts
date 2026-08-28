@@ -4,6 +4,12 @@ import { readFileSync } from "node:fs";
 import { stdout } from "node:process";
 import { executeLiveMeetingActions, formatTaskChecklist, previewScenario, runMeetingExecution, runPhase0Task } from "@yomeets/agent-core";
 import {
+  DeepgramDiarizationProvider,
+  DeepgramStreamingSttProvider,
+  MacOsFfmpegAudioRecorder,
+  ProviderBackedLiveAudioPipeline
+} from "@yomeets/audio-core";
+import {
   formatBenchmarkSummary,
   formatFaultBenchmarkSummary,
   formatEndToEndDemoSummary,
@@ -21,6 +27,7 @@ import {
   extractCommitments,
   formatMeetingOutstandingCommitments,
   reconcileMeeting,
+  runLiveMeeting,
   loadMeetingOutstandingCommitments,
   loadStoredMeetingCommitments,
   type Commitment,
@@ -554,6 +561,22 @@ function hasFlag(args: string[], flag: string) {
   return args.includes(flag);
 }
 
+function optionValue(args: string[], name: string) {
+  const inline = args.find((arg) => arg.startsWith(`${name}=`));
+
+  if (inline) {
+    return inline.slice(name.length + 1);
+  }
+
+  const index = args.indexOf(name);
+
+  if (index === -1) {
+    return undefined;
+  }
+
+  return args[index + 1];
+}
+
 function configured(name: string) {
   return process.env[name] ? "configured" : "missing";
 }
@@ -782,6 +805,69 @@ async function executeLiveActions(args: string[]) {
   }
 }
 
+async function liveAudio(args: string[]) {
+  const storage = openStorage();
+  const title = optionValue(args, "--title") ?? `Live meeting ${new Date().toISOString()}`;
+  const device = optionValue(args, "--device") ?? process.env.YOMEETS_AUDIO_DEVICE ?? "default";
+  const source = optionValue(args, "--source") === "system" ? "system" : "microphone";
+
+  runMigrations(storage);
+
+  const meeting = new MeetingRepository(storage).create({
+    title,
+    transcript: ""
+  });
+  const recorder = new MacOsFfmpegAudioRecorder({
+    device,
+    source
+  });
+  const pipeline = new ProviderBackedLiveAudioPipeline(
+    recorder,
+    new DeepgramStreamingSttProvider({
+      diarize: true,
+      interimResults: false
+    }),
+    new DeepgramDiarizationProvider()
+  );
+
+  stdout.write(`Meeting ${meeting.id}\n`);
+  stdout.write(`Listening on ${source} device: ${device}\n`);
+  stdout.write("Press Ctrl+C to stop.\n");
+
+  process.once("SIGINT", () => {
+    stdout.write("\nStopping live audio...\n");
+    void pipeline.stop();
+  });
+
+  try {
+    const events = await runLiveMeeting({
+      config: {
+        maxUnprocessedMs: 15_000,
+        maxUnprocessedSegments: 3
+      },
+      meetingId: meeting.id,
+      onEvent: (event) => {
+        if (event.type === "segment_ingested") {
+          stdout.write(`segment ${event.sequence}: ${event.segmentId}\n`);
+        }
+
+        if (event.type === "window_processed") {
+          stdout.write(`window ${event.sequence}: ${event.result.actions.length} actions, ${event.result.decisions.length} decisions, ${event.result.questions.length} questions\n`);
+        }
+      },
+      provider: modelProviderFromEnv(),
+      segments: pipeline.stream(meeting.id),
+      storage
+    });
+
+    stdout.write(`Stopped. Events: ${events.length}\n`);
+    stdout.write(`Next: yomeets execute-live-actions ${meeting.id} --dry-run --yes\n`);
+  } finally {
+    await pipeline.stop();
+    storage.sqlite.close();
+  }
+}
+
 async function approveTask(args: string[]) {
   const [taskId, ...labelParts] = args;
   const label = labelParts.join(" ").trim();
@@ -863,6 +949,11 @@ async function main() {
     return;
   }
 
+  if (command === "live-audio") {
+    await liveAudio(args);
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
@@ -873,7 +964,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets doctor\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets process-meeting notes.txt --dry-run\n  yomeets execute-live-actions <meetingId> --dry-run --yes\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets doctor\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets process-meeting notes.txt --dry-run\n  yomeets live-audio --device \"MacBook Pro Microphone\" --title \"Engineering Sync\"\n  yomeets execute-live-actions <meetingId> --dry-run --yes\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()

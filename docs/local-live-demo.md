@@ -46,6 +46,24 @@ For the MVP, install `ffmpeg` and a system-audio device such as BlackHole 2ch. T
 brew install ffmpeg
 ```
 
+Run a real microphone stream through Deepgram and the live YoMeets processor:
+
+```bash
+pnpm live:audio -- --device "MacBook Pro Microphone" --title "Engineering Sync"
+```
+
+For system audio, select your BlackHole device:
+
+```bash
+pnpm live:audio -- --device "BlackHole 2ch" --source system --title "Engineering Sync"
+```
+
+Stop with Ctrl+C, then execute detected live actions in dry-run mode:
+
+```bash
+node apps/cli/dist/main.js execute-live-actions <meeting-id> --dry-run --yes
+```
+
 Use:
 
 ```bash

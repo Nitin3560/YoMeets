@@ -29,6 +29,9 @@ importers:
       '@yomeets/agent-core':
         specifier: workspace:*
         version: link:../../packages/agent-core
+      '@yomeets/audio-core':
+        specifier: workspace:*
+        version: link:../../packages/audio-core
       '@yomeets/benchmark-phase1':
         specifier: workspace:*
         version: link:../../tests/benchmarks/phase1

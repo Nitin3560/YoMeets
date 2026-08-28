@@ -28,6 +28,7 @@ export type LiveMeetingEvent =
     };
 
 export type RunLiveMeetingInput = {
+  onEvent?: (event: LiveMeetingEvent) => void;
   meetingId: string;
   provider: ModelProvider;
   segments: AsyncIterable<DiarizedSegment>;
@@ -63,6 +64,7 @@ export async function runLiveMeeting(input: RunLiveMeetingInput): Promise<LiveMe
       sequence,
       type: "segment_ingested"
     });
+    input.onEvent?.(events[events.length - 1] as LiveMeetingEvent);
 
     const result = await maybeProcessMeetingWindow(input.storage, {
       config: input.config,
@@ -79,6 +81,7 @@ export async function runLiveMeeting(input: RunLiveMeetingInput): Promise<LiveMe
         sequence,
         type: "window_processed"
       });
+      input.onEvent?.(events[events.length - 1] as LiveMeetingEvent);
     }
 
     resolveSpeakerIdentities(input.storage, {
@@ -88,6 +91,7 @@ export async function runLiveMeeting(input: RunLiveMeetingInput): Promise<LiveMe
       sequence,
       type: "speaker_resolution_checked"
     });
+    input.onEvent?.(events[events.length - 1] as LiveMeetingEvent);
   }
 
   return events;

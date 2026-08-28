@@ -12,6 +12,7 @@
     "dev": "turbo run dev",
     "eval:live-core": "pnpm demo:live-meeting",
     "lint": "turbo run lint",
+    "live:audio": "pnpm build && node apps/cli/dist/main.js live-audio",
     "postgres:down": "docker compose down",
     "postgres:up": "docker compose up -d postgres",
     "smoke:meeting-window": "pnpm build && node --experimental-strip-types scripts/smoke-meeting-window.ts",
