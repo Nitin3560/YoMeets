@@ -7,6 +7,10 @@ export {
   type MeetingAction,
   type MeetingDecision,
   type MeetingQuestion,
+  type MeetingStateSummary,
+  OperationListSchema,
+  OperationSchema,
+  type Operation,
   type OwnerRef,
   type SpeakerRef,
   type TranscriptSegment
@@ -26,3 +30,8 @@ export {
   type MeetingStatusAdapter
 } from "./accountability.js";
 export { planCommitment, planCommitments, type PlannedAction } from "./planner.js";
+export {
+  processMeetingWindow,
+  type ProcessMeetingWindowInput,
+  type ProcessMeetingWindowResult
+} from "./window-processor.js";
