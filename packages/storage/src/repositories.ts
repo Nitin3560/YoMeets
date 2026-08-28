@@ -157,6 +157,7 @@ export class MeetingRepository {
 
   create(input: CreateMeetingInput) {
     const meeting = {
+      audioPath: null,
       createdAt: now(),
       id: randomUUID(),
       title: input.title ?? null,
@@ -166,6 +167,21 @@ export class MeetingRepository {
 
     this.storage.db.insert(meetings).values(meeting).run();
     return meeting;
+  }
+
+  findById(id: string) {
+    return this.storage.db.select().from(meetings).where(eq(meetings.id, id)).get();
+  }
+
+  recordAudioPath(id: string, audioPath: string) {
+    this.storage.db
+      .update(meetings)
+      .set({
+        audioPath,
+        updatedAt: now()
+      })
+      .where(eq(meetings.id, id))
+      .run();
   }
 }
 

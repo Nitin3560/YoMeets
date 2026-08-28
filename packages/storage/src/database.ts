@@ -45,4 +45,10 @@ export function runMigrations(storage: Storage) {
   if (segmentColumns.length > 0 && !segmentColumns.some((column) => column.name === "sequence")) {
     storage.sqlite.exec("ALTER TABLE transcript_segments ADD COLUMN sequence integer NOT NULL DEFAULT 0");
   }
+
+  const meetingColumns = storage.sqlite.prepare("PRAGMA table_info(meetings)").all() as Array<{ name: string }>;
+
+  if (meetingColumns.length > 0 && !meetingColumns.some((column) => column.name === "audio_path")) {
+    storage.sqlite.exec("ALTER TABLE meetings ADD COLUMN audio_path text");
+  }
 }

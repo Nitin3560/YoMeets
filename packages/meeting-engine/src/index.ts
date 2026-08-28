@@ -52,3 +52,10 @@ export {
   type LiveMeetingEvent,
   type RunLiveMeetingInput
 } from "./live-meeting.js";
+export {
+  evidenceClipsForMeeting,
+  reconcileMeeting,
+  recordMeetingAudio,
+  type EvidenceClip,
+  type ReconciliationReport
+} from "./reconciliation.js";

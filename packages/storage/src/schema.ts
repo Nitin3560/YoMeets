@@ -73,6 +73,7 @@ export const meetings = sqliteTable("meetings", {
   id: text("id").primaryKey(),
   title: text("title"),
   transcript: text("transcript").notNull(),
+  audioPath: text("audio_path"),
   ...timestamps
 });
 
