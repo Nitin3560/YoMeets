@@ -26,17 +26,29 @@ function normalizeName(name: string) {
 }
 
 function addressedParticipantId(text: string, participants: Array<{ id: string; name: string }>) {
-  const firstToken = text.trim().split(/[\s,]+/)[0]?.toLowerCase();
+  const normalized = normalizeName(text);
+  const directName = normalized.match(/^([a-z]+(?:\s+[a-z]+)?)[,\s]+(?:can|could|will|would|please)\b/)?.[1];
+  const firstToken = directName?.split(/\s+/)[0] ?? text.trim().split(/[\s,]+/)[0]?.toLowerCase();
 
   if (!firstToken) {
     return undefined;
   }
 
-  return participants.find((participant) => normalizeName(participant.name).split(/\s+/)[0] === firstToken)?.id;
+  const matches = participants.filter((participant) => {
+    const name = normalizeName(participant.name);
+
+    return name === directName || name.split(/\s+/)[0] === firstToken;
+  });
+
+  return matches.length === 1 ? matches[0]?.id : undefined;
 }
 
 function acceptsWork(text: string) {
-  return /\b(i'll|i will|i can|i'll handle|i can handle|yeah|sure|okay)\b/i.test(text);
+  if (/\b(no|not me|can't|cannot|won't|someone else|not mine)\b/i.test(text)) {
+    return false;
+  }
+
+  return /\b(i'll|i will|i can|i'll handle|i can handle|i got it|i've got it|yeah|yes|sure|okay|ok|sounds good)\b/i.test(text);
 }
 
 function rowStatus(status: string): SpeakerResolutionStatus {

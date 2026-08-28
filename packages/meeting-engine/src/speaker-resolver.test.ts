@@ -115,6 +115,56 @@ try {
   assert.equal(confirmedCluster?.resolvedParticipantId, sarah.id);
   assert.equal(updatedAction?.status, "open");
   assert.equal(ownerRef.participantId, sarah.id);
+
+  const ambiguousMeeting = new MeetingRepository(storage).create({
+    title: "Ambiguous names",
+    transcript: ""
+  });
+
+  new MeetingParticipantRepository(storage).create({
+    id: "participant_sarah_a",
+    meetingId: ambiguousMeeting.id,
+    name: "Sarah"
+  });
+  new MeetingParticipantRepository(storage).create({
+    id: "participant_sarah_b",
+    meetingId: ambiguousMeeting.id,
+    name: "Sarah Lee"
+  });
+  ingestTranscriptSegment(storage, {
+    endMs: 1000,
+    id: "ambiguous_1",
+    meetingId: ambiguousMeeting.id,
+    sequence: 1,
+    speakerLabel: "S1",
+    startMs: 0,
+    text: "Sarah, can you check the flaky test?"
+  });
+  ingestTranscriptSegment(storage, {
+    endMs: 2200,
+    id: "ambiguous_2",
+    meetingId: ambiguousMeeting.id,
+    sequence: 2,
+    speakerLabel: "S2",
+    startMs: 1100,
+    text: "Sure, I got it."
+  });
+  ingestTranscriptSegment(storage, {
+    endMs: 3300,
+    id: "ambiguous_3",
+    meetingId: ambiguousMeeting.id,
+    sequence: 3,
+    speakerLabel: "S3",
+    startMs: 2300,
+    text: "No, I can't take that one."
+  });
+
+  const ambiguous = resolveSpeakerIdentities(storage, {
+    meetingId: ambiguousMeeting.id
+  });
+
+  assert.equal(ambiguous.find((resolution) => resolution.speakerClusterId === `${ambiguousMeeting.id}_S2`)?.status, "unknown");
+  assert.equal(ambiguous.find((resolution) => resolution.speakerClusterId === `${ambiguousMeeting.id}_S3`)?.status, "unknown");
 } finally {
   storage.sqlite.close();
 }
