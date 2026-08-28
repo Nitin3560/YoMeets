@@ -42,7 +42,7 @@ export async function runLiveMeeting(input: RunLiveMeetingInput): Promise<LiveMe
     lastProcessedAtMs: 0,
     lastProcessedSequence: 0
   };
-  let sequence = 0;
+  let sequence = state.lastProcessedSequence;
 
   for await (const segment of input.segments) {
     sequence += 1;
