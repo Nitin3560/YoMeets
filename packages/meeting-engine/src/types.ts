@@ -69,6 +69,7 @@ export type TranscriptSegment = {
   text: string;
   final: boolean;
   source: string;
+  sequence: number;
 };
 
 export type MeetingStateSummary = {

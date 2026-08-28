@@ -16,9 +16,15 @@ export {
   type TranscriptSegment
 } from "./types.js";
 export {
+  applyOperations,
   ingestTranscriptSegment,
+  maybeProcessMeetingWindow,
+  type ApplyOperationsResult,
   type IngestTranscriptSegmentInput,
-  type IngestTranscriptSegmentResult
+  type IngestTranscriptSegmentResult,
+  type MeetingWindowTriggerConfig,
+  type MeetingWindowTriggerState,
+  type MaybeProcessMeetingWindowInput
 } from "./ingest.js";
 export { extractCommitments, type ExtractCommitmentsResult } from "./extractor.js";
 export {

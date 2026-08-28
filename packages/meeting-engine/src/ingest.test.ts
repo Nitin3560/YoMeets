@@ -11,7 +11,8 @@ import {
   openStorage,
   runMigrations
 } from "@yomeets/storage";
-import { ingestTranscriptSegment } from "./ingest.js";
+import { ScriptedModelProvider } from "@yomeets/model-router";
+import { ingestTranscriptSegment, maybeProcessMeetingWindow } from "./ingest.js";
 import type { Evidence, OwnerRef, SpeakerRef } from "./types.js";
 
 const storage = openStorage(join(mkdtempSync(join(tmpdir(), "yomeets-canonical-meeting-")), "test.sqlite"));
@@ -37,25 +38,62 @@ try {
     endMs: 1800,
     id: "seg_1",
     meetingId: meeting.id,
+    sequence: 1,
     speakerLabel: "S1",
     startMs: 0,
     text: "Sarah, can you check the auth timeout?"
   });
-  const second = ingestTranscriptSegment(storage, {
+  ingestTranscriptSegment(storage, {
     endMs: 3600,
     id: "seg_2",
     meetingId: meeting.id,
+    sequence: 2,
     speakerLabel: "S2",
     startMs: 1900,
     text: "Yeah, I'll fix it tomorrow."
   });
-  const third = ingestTranscriptSegment(storage, {
+  ingestTranscriptSegment(storage, {
     endMs: 5200,
     id: "seg_3",
     meetingId: meeting.id,
+    sequence: 3,
     speakerLabel: "S3",
     startMs: 3700,
     text: "Let's keep Redis for now."
+  });
+  const applied = await maybeProcessMeetingWindow(storage, {
+    config: {
+      maxUnprocessedSegments: 3
+    },
+    currentState: {
+      decisions: [],
+      openActions: [],
+      openQuestions: []
+    },
+    meetingId: meeting.id,
+    provider: new ScriptedModelProvider([
+      JSON.stringify([
+        {
+          deadline: "tomorrow",
+          description: "Fix auth timeout",
+          evidenceEndMs: 3600,
+          evidenceStartMs: 1900,
+          ownerSpeakerId: `${meeting.id}_S2`,
+          type: "CREATE_ACTION"
+        },
+        {
+          evidenceEndMs: 5200,
+          evidenceStartMs: 3700,
+          speakerId: `${meeting.id}_S3`,
+          text: "Keep Redis for now",
+          type: "CREATE_DECISION"
+        }
+      ])
+    ]),
+    state: {
+      lastProcessedAtMs: 0,
+      lastProcessedSequence: 0
+    }
   });
 
   const clusters = new SpeakerClusterRepository(storage).listForMeeting(meeting.id);
@@ -65,14 +103,14 @@ try {
   assert.deepEqual(clusters.map((cluster) => cluster.label).sort(), ["S1", "S2", "S3"]);
   assert.deepEqual(clusters.map((cluster) => cluster.resolutionStatus), ["unknown", "unknown", "unknown"]);
 
-  assert.equal(second.actions.length, 1);
+  assert.equal(applied?.actions.length, 1);
   assert.equal(actions.length, 1);
   assert.equal(actions[0]?.description, "Fix auth timeout");
   assert.equal(actions[0]?.deadline, "tomorrow");
   assert.equal((JSON.parse(actions[0]?.ownerRefJson ?? "{}") as OwnerRef).speakerClusterId, `${meeting.id}_S2`);
   assert.equal((JSON.parse(actions[0]?.evidenceJson ?? "[]") as Evidence[])[0]?.segmentId, "seg_2");
 
-  assert.equal(third.decisions.length, 1);
+  assert.equal(applied?.decisions.length, 1);
   assert.equal(decisions.length, 1);
   assert.equal(decisions[0]?.text, "Keep Redis for now");
   assert.equal((JSON.parse(decisions[0]?.speakerRefJson ?? "{}") as SpeakerRef).speakerClusterId, `${meeting.id}_S3`);

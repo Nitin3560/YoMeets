@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS `transcript_segments` (
   `text` text NOT NULL,
   `final` integer NOT NULL,
   `source` text NOT NULL,
+  `sequence` integer NOT NULL DEFAULT 0,
   `created_at` text NOT NULL,
   `updated_at` text,
   FOREIGN KEY (`meeting_id`) REFERENCES `meetings`(`id`) ON UPDATE no action ON DELETE no action,

@@ -39,4 +39,10 @@ export function runMigrations(storage: Storage) {
   storage.sqlite.exec(meetingSql);
   const canonicalMeetingSql = readFileSync(canonicalMeetingMigrationPath, "utf8").replace(/--> statement-breakpoint/g, "");
   storage.sqlite.exec(canonicalMeetingSql);
+
+  const segmentColumns = storage.sqlite.prepare("PRAGMA table_info(transcript_segments)").all() as Array<{ name: string }>;
+
+  if (segmentColumns.length > 0 && !segmentColumns.some((column) => column.name === "sequence")) {
+    storage.sqlite.exec("ALTER TABLE transcript_segments ADD COLUMN sequence integer NOT NULL DEFAULT 0");
+  }
 }

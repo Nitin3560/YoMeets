@@ -136,6 +136,7 @@ export const transcriptSegments = sqliteTable("transcript_segments", {
   text: text("text").notNull(),
   final: integer("final").notNull(),
   source: text("source").notNull(),
+  sequence: integer("sequence").notNull(),
   ...timestamps
 });
 

@@ -9,6 +9,7 @@ const segments: TranscriptSegment[] = [
     final: true,
     id: "seg_2",
     meetingId: "meeting_1",
+    sequence: 2,
     source: "test",
     speakerClusterId: "S2",
     startMs: 1900,

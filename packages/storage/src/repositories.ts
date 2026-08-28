@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
 import type { Storage } from "./database.js";
 import {
   actions,
@@ -397,6 +397,7 @@ export type CreateTranscriptSegmentInput = {
   text: string;
   final: boolean;
   source: string;
+  sequence?: number;
 };
 
 export class TranscriptSegmentRepository {
@@ -414,6 +415,7 @@ export class TranscriptSegmentRepository {
       speakerClusterId: input.speakerClusterId,
       startMs: input.startMs,
       text: input.text,
+      sequence: input.sequence ?? input.startMs,
       updatedAt: null
     };
 
@@ -427,6 +429,15 @@ export class TranscriptSegmentRepository {
       .from(transcriptSegments)
       .where(eq(transcriptSegments.meetingId, meetingId))
       .orderBy(transcriptSegments.startMs)
+      .all();
+  }
+
+  listAfterSequence(meetingId: string, sequence: number) {
+    return this.storage.db
+      .select()
+      .from(transcriptSegments)
+      .where(and(eq(transcriptSegments.meetingId, meetingId), gt(transcriptSegments.sequence, sequence)))
+      .orderBy(transcriptSegments.sequence)
       .all();
   }
 }
@@ -463,6 +474,26 @@ export class CanonicalMeetingActionRepository {
 
   listForMeeting(meetingId: string) {
     return this.storage.db.select().from(meetingActions).where(eq(meetingActions.meetingId, meetingId)).all();
+  }
+
+  update(id: string, input: { status?: string; description?: string }) {
+    const updates: { description?: string; status?: string; updatedAt: string } = {
+      updatedAt: now()
+    };
+
+    if (input.description !== undefined) {
+      updates.description = input.description;
+    }
+
+    if (input.status !== undefined) {
+      updates.status = input.status;
+    }
+
+    this.storage.db
+      .update(meetingActions)
+      .set(updates)
+      .where(eq(meetingActions.id, id))
+      .run();
   }
 }
 
@@ -527,6 +558,17 @@ export class MeetingQuestionRepository {
 
   listForMeeting(meetingId: string) {
     return this.storage.db.select().from(meetingQuestions).where(eq(meetingQuestions.meetingId, meetingId)).all();
+  }
+
+  resolve(id: string) {
+    this.storage.db
+      .update(meetingQuestions)
+      .set({
+        status: "resolved",
+        updatedAt: now()
+      })
+      .where(eq(meetingQuestions.id, id))
+      .run();
   }
 }
 
