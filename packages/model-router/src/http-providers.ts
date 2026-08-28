@@ -229,7 +229,7 @@ export class GeminiModelProvider implements PricedProvider {
   readonly id = "gemini";
 
   constructor(
-    readonly model = process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
+    readonly model = process.env.GEMINI_MODEL ?? "gemini-3.6-flash",
     private readonly apiKey = requireEnv("GEMINI_API_KEY")
   ) {}
 

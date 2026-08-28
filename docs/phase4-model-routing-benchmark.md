@@ -12,7 +12,7 @@ Providers:
 - `local`: built-in heuristic parser, no token cost
 - `openai`: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, default `gpt-5.1`
 - `anthropic`: `ANTHROPIC_API_KEY`, optional `ANTHROPIC_MODEL`, default `claude-sonnet-4-5`
-- `gemini`: `GEMINI_API_KEY`, optional `GEMINI_MODEL`, default `gemini-2.5-flash`
+- `gemini`: `GEMINI_API_KEY`, optional `GEMINI_MODEL`, default `gemini-3.6-flash`
 - `ollama`: local Ollama server, optional `OLLAMA_MODEL`, default `llama3.1:8b`
 
 The table reports provider availability, Phase 1 success rate, invalid-JSON rate, total latency, token counts, and estimated token cost.

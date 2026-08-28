@@ -45,6 +45,35 @@ function parseJson(text: string) {
   return JSON.parse(text) as unknown;
 }
 
+function canonicalOperationType(type: unknown) {
+  if (typeof type !== "string") {
+    return type;
+  }
+
+  return type.trim().replace(/[\s-]+/g, "_").toUpperCase();
+}
+
+function normalizeOperationJson(value: unknown): unknown {
+  const operations = typeof value === "object" && value !== null && "operations" in value
+    ? (value as { operations?: unknown }).operations
+    : value;
+
+  if (!Array.isArray(operations)) {
+    return operations;
+  }
+
+  return operations.map((operation) => {
+    if (typeof operation !== "object" || operation === null || !("type" in operation)) {
+      return operation;
+    }
+
+    return {
+      ...operation,
+      type: canonicalOperationType((operation as { type?: unknown }).type)
+    };
+  });
+}
+
 function validateReferences(operations: Operation[], state: MeetingStateSummary) {
   const actionIds = new Set(state.openActions.map((action) => action.id));
   const questionIds = new Set(state.openQuestions.map((question) => question.id));
@@ -74,7 +103,12 @@ export async function processMeetingWindow(input: ProcessMeetingWindowInput): Pr
         system: systemPrompt,
         user: userPrompt(input)
       });
-      const operations = OperationListSchema.parse(parseJson(response.text));
+
+      if (process.env.YOMEETS_DEBUG_MODEL) {
+        console.error(response.text);
+      }
+
+      const operations = OperationListSchema.parse(normalizeOperationJson(parseJson(response.text)));
 
       validateReferences(operations, input.currentState);
 

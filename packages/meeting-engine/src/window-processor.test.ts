@@ -48,6 +48,33 @@ if (retried.status === "processed") {
   assert.equal(retried.operations[0]?.type, "CREATE_ACTION");
 }
 
+const normalized = await processMeetingWindow({
+  afterSequence: 1,
+  currentState: state,
+  meetingId: "meeting_1",
+  provider: new ScriptedModelProvider([
+    JSON.stringify({
+      operations: [
+        {
+          deadline: "tomorrow",
+          description: "Fix auth timeout",
+          evidenceEndMs: 3600,
+          evidenceStartMs: 1900,
+          ownerSpeakerId: "S2",
+          type: "create-action"
+        }
+      ]
+    })
+  ]),
+  segments
+});
+
+assert.equal(normalized.status, "processed");
+
+if (normalized.status === "processed") {
+  assert.equal(normalized.operations[0]?.type, "CREATE_ACTION");
+}
+
 const rejected = await processMeetingWindow({
   afterSequence: 2,
   currentState: state,
