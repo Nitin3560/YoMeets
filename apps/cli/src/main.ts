@@ -8,7 +8,8 @@ import {
   DeepgramDiarizationProvider,
   DeepgramStreamingSttProvider,
   MacOsFfmpegAudioRecorder,
-  ProviderBackedLiveAudioPipeline
+  ProviderBackedLiveAudioPipeline,
+  listMacOsAudioDevices
 } from "@yomeets/audio-core";
 import {
   formatBenchmarkSummary,
@@ -909,6 +910,21 @@ async function liveAudio(args: string[]) {
   }
 }
 
+async function audioDevices() {
+  const devices = await listMacOsAudioDevices();
+
+  if (devices.length === 0) {
+    stdout.write("No macOS audio devices found through ffmpeg.\n");
+    return;
+  }
+
+  stdout.write("macOS audio devices:\n");
+
+  for (const device of devices) {
+    stdout.write(`- ${device}\n`);
+  }
+}
+
 async function approveTask(args: string[]) {
   const [taskId, ...labelParts] = args;
   const label = labelParts.join(" ").trim();
@@ -995,6 +1011,11 @@ async function main() {
     return;
   }
 
+  if (command === "audio-devices") {
+    await audioDevices();
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
@@ -1005,7 +1026,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets doctor\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets process-meeting notes.txt --dry-run\n  yomeets live-audio --device \"MacBook Pro Microphone\" --title \"Engineering Sync\"\n  yomeets execute-live-actions <meetingId> --dry-run --yes\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets doctor\n  yomeets audio-devices\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets process-meeting notes.txt --dry-run\n  yomeets live-audio --device \"MacBook Pro Microphone\" --title \"Engineering Sync\"\n  yomeets execute-live-actions <meetingId> --dry-run --yes\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()

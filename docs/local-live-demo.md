@@ -44,6 +44,7 @@ For the MVP, install `ffmpeg` and a system-audio device such as BlackHole 2ch. T
 
 ```bash
 brew install ffmpeg
+node apps/cli/dist/main.js audio-devices
 ```
 
 Run a real microphone stream through Deepgram and the live YoMeets processor:

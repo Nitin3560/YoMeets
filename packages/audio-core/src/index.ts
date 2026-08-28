@@ -258,6 +258,26 @@ export class MacOsFfmpegAudioRecorder implements AudioRecorder {
   }
 }
 
+export function listMacOsAudioDevices(ffmpegPath = "ffmpeg") {
+  return new Promise<string[]>((resolve, reject) => {
+    const process = spawn(ffmpegPath, ["-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""], {
+      stdio: ["ignore", "ignore", "pipe"]
+    });
+    let output = "";
+
+    process.stderr.on("data", (chunk: Buffer) => {
+      output += chunk.toString("utf8");
+    });
+    process.on("error", reject);
+    process.on("close", () => {
+      resolve(output
+        .split(/\r?\n/)
+        .map((line) => line.match(/\]\s+(\[\d+\]\s+.+)$/)?.[1])
+        .filter((line): line is string => Boolean(line)));
+    });
+  });
+}
+
 export class NotConfiguredSttProvider implements StreamingSttProvider {
   constructor(private readonly provider = "streaming STT provider") {}
 
