@@ -64,6 +64,10 @@ export {
   loadMeetingMemory,
   searchMeetingMemory,
   type AskYoMeetsResult,
+  LocalMeetingMemoryIndex,
+  PostgresMemoryNotConfiguredError,
+  PostgresPgvectorMemoryIndex,
+  type MeetingMemoryIndex,
   type MeetingMemoryKind,
   type MeetingMemoryRecord
 } from "./memory.js";

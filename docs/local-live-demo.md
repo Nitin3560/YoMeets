@@ -44,3 +44,14 @@ node apps/cli/dist/main.js doctor
 ```
 
 to check which provider credentials are configured without printing secrets.
+
+## Postgres Memory
+
+With a local pgvector database configured:
+
+```bash
+export YOMEETS_POSTGRES_URL="postgres://USER:PASSWORD@127.0.0.1:5432/yomeets"
+pnpm smoke:postgres-memory
+```
+
+Replace `USER:PASSWORD` with your local Postgres credentials. The smoke command creates the pgvector table, upserts local meeting memory, and searches it through Postgres.

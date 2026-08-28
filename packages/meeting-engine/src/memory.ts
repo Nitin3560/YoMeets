@@ -1,4 +1,5 @@
 import type { ModelProvider } from "@yomeets/model-router";
+import postgres, { type Sql } from "postgres";
 import {
   CanonicalMeetingActionRepository,
   MeetingDecisionRepository,
@@ -49,23 +50,124 @@ export class LocalMeetingMemoryIndex implements MeetingMemoryIndex {
 }
 
 export class PostgresPgvectorMemoryIndex implements MeetingMemoryIndex {
-  constructor(private readonly connectionString = process.env.YOMEETS_POSTGRES_URL) {}
+  private readonly sql?: Sql;
 
-  async search(_query: string, _limit = 5): Promise<MeetingMemoryRecord[]> {
-    if (!this.connectionString) {
+  constructor(private readonly connectionString = process.env.YOMEETS_POSTGRES_URL) {
+    this.sql = connectionString ? postgres(connectionString, { max: 1, onnotice: () => undefined }) : undefined;
+  }
+
+  async search(query: string, limit = 5): Promise<MeetingMemoryRecord[]> {
+    const sql = this.requireSql();
+    const rows = await sql.begin(async (transaction) => {
+      await transaction`set local enable_indexscan = off`;
+      return transaction<Array<{
+        evidence: Evidence[];
+        id: string;
+        kind: MeetingMemoryKind;
+        meeting_id: string;
+        text: string;
+      }>>`
+        select id, meeting_id, kind, text, evidence
+        from yomeets_memory
+        order by embedding <=> ${vectorLiteral(embedText(query))}::vector
+        limit ${limit}
+      `;
+    });
+
+    return rows.map((row) => ({
+      evidence: row.evidence,
+      id: row.id,
+      kind: row.kind,
+      meetingId: row.meeting_id,
+      text: row.text
+    }));
+  }
+
+  async upsert(records: MeetingMemoryRecord[]): Promise<void> {
+    const sql = this.requireSql();
+
+    await this.migrate();
+
+    for (const record of records) {
+      await sql`
+        insert into yomeets_memory (id, meeting_id, kind, text, evidence, embedding)
+        values (
+          ${record.id},
+          ${record.meetingId},
+          ${record.kind},
+          ${record.text},
+          ${sql.json(record.evidence)},
+          ${vectorLiteral(embedText(record.text))}::vector
+        )
+        on conflict (id) do update set
+          meeting_id = excluded.meeting_id,
+          kind = excluded.kind,
+          text = excluded.text,
+          evidence = excluded.evidence,
+          embedding = excluded.embedding,
+          updated_at = now()
+      `;
+    }
+  }
+
+  async migrate(): Promise<void> {
+    const sql = this.requireSql();
+
+    await sql`create extension if not exists vector`;
+    await sql`
+      create table if not exists yomeets_memory (
+        id text primary key,
+        meeting_id text not null,
+        kind text not null,
+        text text not null,
+        evidence jsonb not null,
+        embedding vector(32) not null,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now()
+      )
+    `;
+    await sql`
+      create index if not exists yomeets_memory_embedding_idx
+      on yomeets_memory
+      using ivfflat (embedding vector_cosine_ops)
+      with (lists = 8)
+    `;
+  }
+
+  async close(): Promise<void> {
+    await this.sql?.end();
+  }
+
+  private requireSql() {
+    if (!this.sql) {
       throw new PostgresMemoryNotConfiguredError();
     }
 
-    throw new PostgresMemoryNotConfiguredError();
+    return this.sql;
   }
+}
 
-  async upsert(_records: MeetingMemoryRecord[]): Promise<void> {
-    if (!this.connectionString) {
-      throw new PostgresMemoryNotConfiguredError();
+function embedText(text: string) {
+  const vector = new Array(32).fill(0) as number[];
+  const tokens = text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+
+  for (const token of tokens) {
+    let hash = 0;
+
+    for (let index = 0; index < token.length; index += 1) {
+      hash = ((hash << 5) - hash + token.charCodeAt(index)) | 0;
     }
 
-    throw new PostgresMemoryNotConfiguredError();
+    vector[Math.abs(hash) % vector.length] += 1;
   }
+
+  const length = Math.hypot(...vector) || 1;
+
+  return vector.map((value) => Number((value / length).toFixed(6)));
+}
+
+function vectorLiteral(vector: number[]) {
+  return `[${vector.join(",")}]`;
 }
 
 function tokenize(text: string) {

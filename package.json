@@ -13,6 +13,7 @@
     "eval:live-core": "pnpm demo:live-meeting",
     "lint": "turbo run lint",
     "smoke:meeting-window": "pnpm build && node --experimental-strip-types scripts/smoke-meeting-window.ts",
+    "smoke:postgres-memory": "pnpm build && node --experimental-strip-types scripts/smoke-postgres-memory.ts",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
