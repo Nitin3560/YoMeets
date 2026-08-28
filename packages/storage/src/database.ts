@@ -25,6 +25,7 @@ export function openStorage(path = "yomeets.sqlite"): Storage {
 export function runMigrations(storage: Storage) {
   const initialMigrationPath = join(dirname(migrationsDir), "migrations/0000_initial_schema.sql");
   const meetingMigrationPath = join(dirname(migrationsDir), "migrations/0001_meeting_execution.sql");
+  const canonicalMeetingMigrationPath = join(dirname(migrationsDir), "migrations/0002_canonical_meeting_model.sql");
   const hasInitialSchema = storage.sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tasks'")
     .get();
@@ -36,4 +37,6 @@ export function runMigrations(storage: Storage) {
 
   const meetingSql = readFileSync(meetingMigrationPath, "utf8").replace(/--> statement-breakpoint/g, "");
   storage.sqlite.exec(meetingSql);
+  const canonicalMeetingSql = readFileSync(canonicalMeetingMigrationPath, "utf8").replace(/--> statement-breakpoint/g, "");
+  storage.sqlite.exec(canonicalMeetingSql);
 }

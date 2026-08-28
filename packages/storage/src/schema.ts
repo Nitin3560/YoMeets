@@ -109,6 +109,66 @@ export const executionResults = sqliteTable("execution_results", {
   ...timestamps
 });
 
+export const meetingParticipants = sqliteTable("meeting_participants", {
+  id: text("id").primaryKey(),
+  meetingId: text("meeting_id").notNull().references(() => meetings.id),
+  name: text("name").notNull(),
+  resolutionStatus: text("resolution_status").notNull(),
+  ...timestamps
+});
+
+export const speakerClusters = sqliteTable("speaker_clusters", {
+  id: text("id").primaryKey(),
+  meetingId: text("meeting_id").notNull().references(() => meetings.id),
+  label: text("label").notNull(),
+  resolvedParticipantId: text("resolved_participant_id").references(() => meetingParticipants.id),
+  resolutionStatus: text("resolution_status").notNull(),
+  ...timestamps
+});
+
+export const transcriptSegments = sqliteTable("transcript_segments", {
+  id: text("id").primaryKey(),
+  meetingId: text("meeting_id").notNull().references(() => meetings.id),
+  speakerClusterId: text("speaker_cluster_id").notNull().references(() => speakerClusters.id),
+  participantId: text("participant_id").references(() => meetingParticipants.id),
+  startMs: integer("start_ms").notNull(),
+  endMs: integer("end_ms").notNull(),
+  text: text("text").notNull(),
+  final: integer("final").notNull(),
+  source: text("source").notNull(),
+  ...timestamps
+});
+
+export const meetingActions = sqliteTable("meeting_actions", {
+  id: text("id").primaryKey(),
+  meetingId: text("meeting_id").notNull().references(() => meetings.id),
+  description: text("description").notNull(),
+  ownerRefJson: text("owner_ref_json").notNull(),
+  deadline: text("deadline"),
+  status: text("status").notNull(),
+  evidenceJson: text("evidence_json").notNull(),
+  ...timestamps
+});
+
+export const meetingDecisions = sqliteTable("meeting_decisions", {
+  id: text("id").primaryKey(),
+  meetingId: text("meeting_id").notNull().references(() => meetings.id),
+  text: text("text").notNull(),
+  speakerRefJson: text("speaker_ref_json").notNull(),
+  evidenceJson: text("evidence_json").notNull(),
+  supersedes: text("supersedes"),
+  ...timestamps
+});
+
+export const meetingQuestions = sqliteTable("meeting_questions", {
+  id: text("id").primaryKey(),
+  meetingId: text("meeting_id").notNull().references(() => meetings.id),
+  text: text("text").notNull(),
+  status: text("status").notNull(),
+  evidenceJson: text("evidence_json").notNull(),
+  ...timestamps
+});
+
 export const auditEvents = sqliteTable("audit_events", {
   id: text("id").primaryKey(),
   taskId: text("task_id").references(() => tasks.id),

@@ -5,12 +5,18 @@ import {
   actions,
   auditEvents,
   executionResults,
+  meetingActions,
   meetingCommitments,
+  meetingDecisions,
+  meetingParticipants,
+  meetingQuestions,
   meetings,
   plannedMeetingActions,
+  speakerClusters,
   taskIntents,
   taskPlans,
   tasks,
+  transcriptSegments,
   verificationResults
 } from "./schema.js";
 
@@ -310,6 +316,217 @@ export class ExecutionResultRepository {
 
     this.storage.db.insert(executionResults).values(result).run();
     return result;
+  }
+}
+
+export type CreateMeetingParticipantInput = {
+  id?: string;
+  meetingId: string;
+  name: string;
+  resolutionStatus?: string;
+};
+
+export class MeetingParticipantRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateMeetingParticipantInput) {
+    const participant = {
+      createdAt: now(),
+      id: input.id ?? randomUUID(),
+      meetingId: input.meetingId,
+      name: input.name,
+      resolutionStatus: input.resolutionStatus ?? "confirmed",
+      updatedAt: null
+    };
+
+    this.storage.db.insert(meetingParticipants).values(participant).run();
+    return participant;
+  }
+
+  listForMeeting(meetingId: string) {
+    return this.storage.db.select().from(meetingParticipants).where(eq(meetingParticipants.meetingId, meetingId)).all();
+  }
+}
+
+export type CreateSpeakerClusterInput = {
+  id?: string;
+  meetingId: string;
+  label: string;
+  resolvedParticipantId?: string;
+  resolutionStatus?: string;
+};
+
+export class SpeakerClusterRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateSpeakerClusterInput) {
+    const cluster = {
+      createdAt: now(),
+      id: input.id ?? randomUUID(),
+      label: input.label,
+      meetingId: input.meetingId,
+      resolutionStatus: input.resolutionStatus ?? "unknown",
+      resolvedParticipantId: input.resolvedParticipantId ?? null,
+      updatedAt: null
+    };
+
+    this.storage.db.insert(speakerClusters).values(cluster).run();
+    return cluster;
+  }
+
+  findByLabel(meetingId: string, label: string) {
+    return this.storage.db
+      .select()
+      .from(speakerClusters)
+      .where(and(eq(speakerClusters.meetingId, meetingId), eq(speakerClusters.label, label)))
+      .get();
+  }
+
+  listForMeeting(meetingId: string) {
+    return this.storage.db.select().from(speakerClusters).where(eq(speakerClusters.meetingId, meetingId)).all();
+  }
+}
+
+export type CreateTranscriptSegmentInput = {
+  id?: string;
+  meetingId: string;
+  speakerClusterId: string;
+  participantId?: string;
+  startMs: number;
+  endMs: number;
+  text: string;
+  final: boolean;
+  source: string;
+};
+
+export class TranscriptSegmentRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateTranscriptSegmentInput) {
+    const segment = {
+      createdAt: now(),
+      endMs: input.endMs,
+      final: input.final ? 1 : 0,
+      id: input.id ?? randomUUID(),
+      meetingId: input.meetingId,
+      participantId: input.participantId ?? null,
+      source: input.source,
+      speakerClusterId: input.speakerClusterId,
+      startMs: input.startMs,
+      text: input.text,
+      updatedAt: null
+    };
+
+    this.storage.db.insert(transcriptSegments).values(segment).run();
+    return segment;
+  }
+
+  listForMeeting(meetingId: string) {
+    return this.storage.db
+      .select()
+      .from(transcriptSegments)
+      .where(eq(transcriptSegments.meetingId, meetingId))
+      .orderBy(transcriptSegments.startMs)
+      .all();
+  }
+}
+
+export type CreateCanonicalMeetingActionInput = {
+  id?: string;
+  meetingId: string;
+  description: string;
+  ownerRef: unknown;
+  deadline?: string | null;
+  status?: string;
+  evidence: unknown;
+};
+
+export class CanonicalMeetingActionRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateCanonicalMeetingActionInput) {
+    const action = {
+      createdAt: now(),
+      deadline: input.deadline ?? null,
+      description: input.description,
+      evidenceJson: asJson(input.evidence),
+      id: input.id ?? randomUUID(),
+      meetingId: input.meetingId,
+      ownerRefJson: asJson(input.ownerRef),
+      status: input.status ?? "open",
+      updatedAt: null
+    };
+
+    this.storage.db.insert(meetingActions).values(action).run();
+    return action;
+  }
+
+  listForMeeting(meetingId: string) {
+    return this.storage.db.select().from(meetingActions).where(eq(meetingActions.meetingId, meetingId)).all();
+  }
+}
+
+export type CreateMeetingDecisionInput = {
+  id?: string;
+  meetingId: string;
+  text: string;
+  speakerRef: unknown;
+  evidence: unknown;
+  supersedes?: string;
+};
+
+export class MeetingDecisionRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateMeetingDecisionInput) {
+    const decision = {
+      createdAt: now(),
+      evidenceJson: asJson(input.evidence),
+      id: input.id ?? randomUUID(),
+      meetingId: input.meetingId,
+      speakerRefJson: asJson(input.speakerRef),
+      supersedes: input.supersedes ?? null,
+      text: input.text,
+      updatedAt: null
+    };
+
+    this.storage.db.insert(meetingDecisions).values(decision).run();
+    return decision;
+  }
+
+  listForMeeting(meetingId: string) {
+    return this.storage.db.select().from(meetingDecisions).where(eq(meetingDecisions.meetingId, meetingId)).all();
+  }
+}
+
+export type CreateMeetingQuestionInput = {
+  id?: string;
+  meetingId: string;
+  text: string;
+  status?: string;
+  evidence: unknown;
+};
+
+export class MeetingQuestionRepository {
+  constructor(private readonly storage: Storage) {}
+
+  create(input: CreateMeetingQuestionInput) {
+    const question = {
+      createdAt: now(),
+      evidenceJson: asJson(input.evidence),
+      id: input.id ?? randomUUID(),
+      meetingId: input.meetingId,
+      status: input.status ?? "open",
+      text: input.text,
+      updatedAt: null
+    };
+
+    this.storage.db.insert(meetingQuestions).values(question).run();
+    return question;
+  }
+
+  listForMeeting(meetingId: string) {
+    return this.storage.db.select().from(meetingQuestions).where(eq(meetingQuestions.meetingId, meetingId)).all();
   }
 }
 
