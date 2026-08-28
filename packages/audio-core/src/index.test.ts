@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import {
   AudioProviderNotConfiguredError,
+  DeepgramStreamingSttProvider,
   FixtureAudioPipeline,
   LiveTranscriptLinePipeline,
   NotConfiguredAudioRecorder,
   ProviderBackedLiveAudioPipeline,
+  buildDeepgramListenUrl,
+  parseDeepgramSttMessage,
   parseLiveTranscriptLine,
   type AudioChunk,
   type SttSegment
@@ -95,6 +98,94 @@ assert.deepEqual(parseLiveTranscriptLine("01:04 S2: Yeah, I'll fix it tomorrow."
   text: "Yeah, I'll fix it tomorrow."
 });
 assert.equal(parseLiveTranscriptLine("this is not a caption line"), undefined);
+
+const deepgramUrl = new URL(buildDeepgramListenUrl());
+
+assert.equal(deepgramUrl.hostname, "api.deepgram.com");
+assert.equal(deepgramUrl.searchParams.get("model"), "nova-3");
+assert.equal(deepgramUrl.searchParams.get("encoding"), "linear16");
+assert.equal(deepgramUrl.searchParams.get("sample_rate"), "16000");
+
+assert.deepEqual(parseDeepgramSttMessage("meeting_deepgram", "dg_1", JSON.stringify({
+  channel: {
+    alternatives: [
+      {
+        transcript: "Nitin will create the issue."
+      }
+    ]
+  },
+  duration: 1.5,
+  is_final: true,
+  start: 2
+})), {
+  endMs: 3500,
+  final: true,
+  id: "dg_1",
+  meetingId: "meeting_deepgram",
+  startMs: 2000,
+  text: "Nitin will create the issue."
+});
+
+assert.equal(parseDeepgramSttMessage("meeting_deepgram", "dg_meta", JSON.stringify({ type: "Metadata" })), undefined);
+
+class FakeDeepgramSocket {
+  onclose?: () => void;
+  onerror?: (event?: unknown) => void;
+  onmessage?: (message: { data?: unknown }) => void;
+  readonly sent: Array<Buffer | string> = [];
+
+  close() {
+    this.onclose?.();
+  }
+
+  send(data: Buffer | string) {
+    this.sent.push(data);
+
+    if (Buffer.isBuffer(data)) {
+      this.onmessage?.({
+        data: JSON.stringify({
+          channel: {
+            alternatives: [{ transcript: "Sarah will check the timeout." }]
+          },
+          duration: 2,
+          is_final: true,
+          start: 0
+        })
+      });
+      return;
+    }
+
+    this.close();
+  }
+}
+
+const fakeSocket = new FakeDeepgramSocket();
+const deepgram = new DeepgramStreamingSttProvider({
+  apiKey: "dg_test",
+  webSocketFactory: (_url, protocols) => {
+    assert.deepEqual(protocols, ["token", "dg_test"]);
+    return fakeSocket;
+  }
+});
+const deepgramSegments = [];
+
+for await (const segment of deepgram.transcribe((async function* () {
+  yield {
+    endMs: 1000,
+    id: "audio_1",
+    meetingId: "meeting_deepgram",
+    pcmBase64: Buffer.from("fake pcm").toString("base64"),
+    source: "mixed",
+    startMs: 0
+  };
+})())) {
+  deepgramSegments.push(segment);
+}
+
+assert.equal(deepgramSegments.length, 1);
+assert.equal(deepgramSegments[0]?.meetingId, "meeting_deepgram");
+assert.equal(deepgramSegments[0]?.text, "Sarah will check the timeout.");
+assert.equal(Buffer.isBuffer(fakeSocket.sent[0]), true);
 
 const liveTranscript = new LiveTranscriptLinePipeline([
   "00:01 S1: Sarah, can you check the auth timeout?",

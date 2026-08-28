@@ -38,6 +38,41 @@ export type StreamingDiarizationProvider = {
   diarize(segments: AsyncIterable<SttSegment>): AsyncIterable<DiarizedSegment>;
 };
 
+type DeepgramMessage = {
+  channel?: {
+    alternatives?: Array<{
+      transcript?: string;
+    }>;
+  };
+  duration?: number;
+  is_final?: boolean;
+  start?: number;
+  type?: string;
+};
+
+type WebSocketLike = {
+  close(): void;
+  send(data: Buffer | string): void;
+  addEventListener?: (event: string, listener: (message?: unknown) => void) => void;
+  onclose?: ((event: any) => void) | null;
+  onerror?: ((event: any) => void) | null;
+  onmessage?: ((message: any) => void) | null;
+  onopen?: ((event: any) => void) | null;
+  readyState?: number;
+};
+
+export type DeepgramStreamingSttOptions = {
+  apiKey?: string;
+  endpointing?: number;
+  encoding?: "linear16" | "linear32" | "mulaw" | "alaw" | "opus" | "ogg-opus";
+  interimResults?: boolean;
+  language?: string;
+  model?: string;
+  sampleRate?: number;
+  url?: string;
+  webSocketFactory?: (url: string, protocols: string[]) => WebSocketLike;
+};
+
 export type LiveAudioProviderConfig = {
   meetingAudioPath: string;
   microphoneDeviceId?: string;
@@ -95,6 +130,180 @@ export class NotConfiguredDiarizationProvider implements StreamingDiarizationPro
 
   async *diarize(_segments: AsyncIterable<SttSegment>): AsyncIterable<DiarizedSegment> {
     throw new AudioProviderNotConfiguredError(this.provider);
+  }
+}
+
+class AsyncQueue<T> {
+  private closed = false;
+  private readonly pending: T[] = [];
+  private readonly waiters: Array<(value: IteratorResult<T>) => void> = [];
+
+  close() {
+    this.closed = true;
+
+    while (this.waiters.length > 0) {
+      this.waiters.shift()?.({ done: true, value: undefined });
+    }
+  }
+
+  push(value: T) {
+    const waiter = this.waiters.shift();
+
+    if (waiter) {
+      waiter({ done: false, value });
+      return;
+    }
+
+    this.pending.push(value);
+  }
+
+  async next(): Promise<IteratorResult<T>> {
+    const value = this.pending.shift();
+
+    if (value) {
+      return { done: false, value };
+    }
+
+    if (this.closed) {
+      return { done: true, value: undefined };
+    }
+
+    return new Promise((resolve) => this.waiters.push(resolve));
+  }
+}
+
+function readEnv(name: string) {
+  return process.env[name];
+}
+
+function defaultWebSocketFactory(url: string, protocols: string[]): WebSocketLike {
+  const WebSocketCtor = (globalThis as typeof globalThis & {
+    WebSocket?: new (url: string, protocols?: string[]) => WebSocketLike;
+  }).WebSocket;
+
+  if (!WebSocketCtor) {
+    throw new AudioProviderNotConfiguredError("WebSocket runtime");
+  }
+
+  return new WebSocketCtor(url, protocols);
+}
+
+export function buildDeepgramListenUrl(options: DeepgramStreamingSttOptions = {}) {
+  const url = new URL(options.url ?? "wss://api.deepgram.com/v1/listen");
+
+  url.searchParams.set("model", options.model ?? "nova-3");
+  url.searchParams.set("language", options.language ?? "en");
+  url.searchParams.set("encoding", options.encoding ?? "linear16");
+  url.searchParams.set("sample_rate", String(options.sampleRate ?? 16000));
+  url.searchParams.set("endpointing", String(options.endpointing ?? 300));
+  url.searchParams.set("interim_results", String(options.interimResults ?? true));
+
+  return url.toString();
+}
+
+export function parseDeepgramSttMessage(
+  meetingId: string,
+  id: string,
+  raw: unknown
+): SttSegment | undefined {
+  const message = typeof raw === "string" ? JSON.parse(raw) as DeepgramMessage : raw as DeepgramMessage;
+  const text = message.channel?.alternatives?.[0]?.transcript?.trim();
+
+  if (!text || message.type === "Metadata" || message.type === "UtteranceEnd" || message.type === "SpeechStarted") {
+    return undefined;
+  }
+
+  const startMs = Math.round((message.start ?? 0) * 1000);
+  const endMs = Math.round(((message.start ?? 0) + (message.duration ?? 0)) * 1000);
+
+  return {
+    endMs: endMs > startMs ? endMs : startMs + Math.max(900, text.length * 35),
+    final: Boolean(message.is_final),
+    id,
+    meetingId,
+    startMs,
+    text
+  };
+}
+
+export class DeepgramStreamingSttProvider implements StreamingSttProvider {
+  private socket?: WebSocketLike;
+
+  constructor(private readonly options: DeepgramStreamingSttOptions = {}) {}
+
+  async *transcribe(chunks: AsyncIterable<AudioChunk>): AsyncIterable<SttSegment> {
+    const apiKey = this.options.apiKey ?? readEnv("DEEPGRAM_API_KEY");
+
+    if (!apiKey) {
+      throw new AudioProviderNotConfiguredError("Deepgram STT");
+    }
+
+    const queue = new AsyncQueue<SttSegment>();
+    const socket = (this.options.webSocketFactory ?? defaultWebSocketFactory)(
+      buildDeepgramListenUrl(this.options),
+      ["token", apiKey]
+    );
+    this.socket = socket;
+    let activeMeetingId = "unknown";
+    let counter = 0;
+
+    const close = () => queue.close();
+    const fail = (event?: unknown) => {
+      queue.push({
+        endMs: 0,
+        final: true,
+        id: "deepgram_error",
+        meetingId: "unknown",
+        startMs: 0,
+        text: `Deepgram stream error: ${String(event)}`
+      });
+      queue.close();
+    };
+    const onMessage = (message: { data?: unknown }) => {
+      try {
+        const segment = parseDeepgramSttMessage(activeMeetingId, `deepgram_seg_${counter + 1}`, message.data);
+
+        if (segment) {
+          counter += 1;
+          queue.push(segment);
+        }
+      } catch (error) {
+        fail(error);
+      }
+    };
+
+    socket.onclose = close;
+    socket.onerror = fail;
+    socket.onmessage = onMessage;
+    socket.addEventListener?.("close", close);
+    socket.addEventListener?.("error", fail);
+    socket.addEventListener?.("message", (message) => onMessage(message as { data?: unknown }));
+
+    void (async () => {
+      for await (const chunk of chunks) {
+        activeMeetingId = chunk.meetingId;
+
+        if (chunk.pcmBase64) {
+          socket.send(Buffer.from(chunk.pcmBase64, "base64"));
+        }
+      }
+
+      socket.send(JSON.stringify({ type: "CloseStream" }));
+    })().catch(fail);
+
+    while (true) {
+      const next = await queue.next();
+
+      if (next.done) {
+        break;
+      }
+
+      yield next.value;
+    }
+  }
+
+  async close(): Promise<void> {
+    this.socket?.close();
   }
 }
 
