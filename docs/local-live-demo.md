@@ -30,7 +30,7 @@ The dashboard connects to `127.0.0.1:47821`, receives meeting state over SSE, an
 ## What Still Needs Real Providers
 
 - Native microphone and system-audio capture.
-- Streaming STT.
+- Streaming STT audio input. Deepgram credentials and adapter support are available with `DEEPGRAM_API_KEY`.
 - Streaming diarization.
 - Playable audio file generation.
 - Real OAuth/token setup for Google and GitHub.

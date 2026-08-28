@@ -83,7 +83,11 @@ importers:
         specifier: ^24.3.0
         version: 24.13.3
 
-  packages/audio-core: {}
+  packages/audio-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
 
   packages/browser-core: {}
 

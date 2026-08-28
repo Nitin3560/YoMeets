@@ -570,6 +570,7 @@ function runDoctor() {
     ["Google refresh token", configured("GOOGLE_REFRESH_TOKEN")],
     ["Postgres memory", configured("YOMEETS_POSTGRES_URL")],
     ["STT provider", configured("YOMEETS_STT_PROVIDER")],
+    ["Deepgram key", configured("DEEPGRAM_API_KEY")],
     ["Diarization provider", configured("YOMEETS_DIARIZATION_PROVIDER")]
   ];
 
