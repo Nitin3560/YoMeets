@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { stdout } from "node:process";
-import { formatTaskChecklist, previewScenario, runPhase0Task } from "@yomeets/agent-core";
+import { formatTaskChecklist, previewScenario, runMeetingExecution, runPhase0Task } from "@yomeets/agent-core";
 import {
   formatBenchmarkSummary,
   formatFaultBenchmarkSummary,
@@ -16,16 +16,18 @@ import {
   runPhase3SideEffectSafetyProof
 } from "@yomeets/benchmark-phase1";
 import {
+  extractCommitments,
   formatMeetingOutstandingCommitments,
   loadMeetingOutstandingCommitments,
   loadStoredMeetingCommitments,
-  runMeetingPipeline,
-  type MeetingIntegrationAdapter
+  type Commitment,
+  type MeetingStatusAdapter
 } from "@yomeets/meeting-engine";
+import { GitHubIntegration, GmailIntegration, GoogleCalendarIntegration } from "@yomeets/integrations";
 import { GeminiModelProvider, LocalHeuristicModelProvider, OpenAiModelProvider, ScriptedModelProvider } from "@yomeets/model-router";
 import { createApprovalRequest } from "@yomeets/policy-engine";
 import { openStorage, runMigrations } from "@yomeets/storage";
-import { normalizeTranscript } from "@yomeets/task-engine";
+import { normalizeTranscript, planMeetingCommitments, type MeetingCommitment, type PlannedMeetingAction } from "@yomeets/task-engine";
 import { promptForApproval } from "./approval.js";
 
 const host = "127.0.0.1";
@@ -286,29 +288,84 @@ function modelProviderFromEnv() {
   throw new Error("Set GEMINI_API_KEY or OPENAI_API_KEY to process a meeting transcript");
 }
 
-function dryRunIntegrations(): MeetingIntegrationAdapter {
+function meetingStatusAdapter(): MeetingStatusAdapter {
+  return {
+    getDraft: (id) => new GmailIntegration().getDraft({ draftId: id }),
+    getEvent: (id) => new GoogleCalendarIntegration().getEvent({ eventId: id }),
+    getIssue: (id) => new GitHubIntegration().getIssue({
+      issueNumber: id,
+      owner: process.env.GITHUB_OWNER ?? "OWNER_REQUIRED",
+      repo: process.env.GITHUB_REPO ?? "REPO_REQUIRED"
+    })
+  };
+}
+
+function dryRunExecution() {
   const results = new Map<string, unknown>();
 
   return {
-    createDraft: async (action) => {
+    execute: async (action: PlannedMeetingAction) => {
+      if (action.type === "github.create_issue") {
+        const id = `dry_github_${results.size + 1}`;
+        results.set(id, { title: action.input.title });
+        return { externalId: id, provider: "github" as const, raw: action.input };
+      }
+
+      if (action.type === "calendar.update_event") {
+        const id = `dry_calendar_${results.size + 1}`;
+        results.set(id, { start: { dateTime: action.input.newTime } });
+        return { externalId: id, provider: "google_calendar" as const, raw: action.input };
+      }
+
       const id = `dry_gmail_${results.size + 1}`;
       results.set(id, { id });
-      return { externalId: id, provider: "gmail", raw: action };
+      return { externalId: id, provider: "gmail" as const, raw: action.input };
     },
-    createIssue: async (action) => {
-      const id = `dry_github_${results.size + 1}`;
-      results.set(id, { title: action.title });
-      return { externalId: id, provider: "github", raw: action };
-    },
-    createOrUpdateEvent: async (action) => {
-      const id = `dry_calendar_${results.size + 1}`;
-      results.set(id, { start: { dateTime: action.newTime } });
-      return { externalId: id, provider: "google_calendar", raw: action };
-    },
-    getDraft: async (id) => results.get(id) as { id?: string; message?: { id?: string } },
-    getEvent: async (id) => results.get(id) as { start?: { dateTime?: string } },
-    getIssue: async (id) => results.get(id) as { title?: string }
+    verify: async (_action: PlannedMeetingAction, result: { externalId: string }) => ({
+      observed: results.get(result.externalId),
+      passed: results.has(result.externalId)
+    })
   };
+}
+
+function toTaskCommitment(commitment: Commitment): MeetingCommitment {
+  const type =
+    commitment.actionType === "create_issue"
+      ? "investigation"
+      : commitment.actionType === "schedule_event"
+        ? "schedule_change"
+        : commitment.actionType === "send_email"
+          ? "follow_up_message"
+          : "decision_record";
+  const recipient = commitment.description.match(/\bto\s+(.+)$/i)?.[1]?.trim();
+
+  return {
+    context: commitment.sourceQuote,
+    due: commitment.deadline ?? undefined,
+    id: commitment.id,
+    owner: commitment.owner || undefined,
+    recipient,
+    subject: commitment.description,
+    summary: commitment.description,
+    type
+  };
+}
+
+async function approvalsForMeetingActions(actions: PlannedMeetingAction[], taskId: string) {
+  const approvals: Record<string, "yes" | "no"> = {};
+
+  for (const action of actions.filter((item) => item.requiresApproval)) {
+    const request = createApprovalRequest(`${action.id}_approval`, taskId, {
+      prompt: `Approve external action: ${action.label}?`,
+      riskLevel: "external_side_effect",
+      status: "approval_required"
+    });
+    const approval = await promptForApproval(request);
+
+    approvals[action.id] = approval.status === "approved" ? "yes" : "no";
+  }
+
+  return approvals;
 }
 
 async function processMeeting(args: string[]) {
@@ -325,7 +382,7 @@ async function processMeeting(args: string[]) {
 
   try {
     const dryRun = hasFlag(args, "--dry-run");
-    const outstanding = dryRun ? loadStoredMeetingCommitments(storage) : await loadMeetingOutstandingCommitments(storage);
+    const outstanding = dryRun ? loadStoredMeetingCommitments(storage) : await loadMeetingOutstandingCommitments(storage, meetingStatusAdapter());
     const outstandingLines = formatMeetingOutstandingCommitments(outstanding);
 
     if (outstandingLines.length > 0) {
@@ -336,23 +393,29 @@ async function processMeeting(args: string[]) {
       }
     }
 
-    const result = await runMeetingPipeline(storage, {
-      approve: async (request) => {
-        const approval = await promptForApproval(request);
+    const extraction = await extractCommitments(transcript, modelProviderFromEnv());
 
-        return approval.status === "approved" ? "yes" : "no";
-      },
-      integrations: dryRun ? dryRunIntegrations() : undefined,
-      provider: modelProviderFromEnv(),
+    if (extraction.status === "failed") {
+      throw new Error(extraction.error);
+    }
+
+    const commitments = extraction.commitments.map(toTaskCommitment);
+    const plan = planMeetingCommitments(commitments);
+    const dryRunHooks = dryRun ? dryRunExecution() : undefined;
+    const result = await runMeetingExecution(storage, {
+      approvals: await approvalsForMeetingActions(plan.actions, filePath),
+      commitments,
+      execute: dryRunHooks?.execute,
       title: filePath,
-      transcript
+      transcript,
+      verify: dryRunHooks?.verify
     });
 
     stdout.write(`Meeting ${result.meetingId}\n`);
-    stdout.write(`Commitments: ${result.commitments.length}\n`);
+    stdout.write(`Commitments: ${commitments.length}\n`);
 
-    for (const action of result.actions) {
-      stdout.write(`${action.status}: ${action.action.type}`);
+    for (const action of result.executions) {
+      stdout.write(`${action.status}: ${action.actionId}`);
 
       if (action.externalId) {
         stdout.write(` -> ${action.externalId}`);

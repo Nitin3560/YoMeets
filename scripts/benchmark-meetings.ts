@@ -4,11 +4,11 @@ import { fileURLToPath } from "node:url";
 import { ScriptedModelProvider } from "../packages/model-router/dist/index.js";
 import {
   CommitmentListSchema,
-  planCommitments,
-  runMeetingPipeline,
+  extractCommitments,
   type Commitment,
-  type MeetingIntegrationAdapter
 } from "../packages/meeting-engine/dist/index.js";
+import { runMeetingExecution } from "../packages/agent-core/dist/index.js";
+import { planMeetingCommitments, type MeetingCommitment, type PlannedMeetingAction } from "../packages/task-engine/dist/index.js";
 import { openStorage, runMigrations } from "../packages/storage/dist/index.js";
 
 type TranscriptFixture = {
@@ -49,65 +49,93 @@ function sameCommitment(actual: Commitment, expected: Commitment) {
   );
 }
 
-function makeDryRunIntegrations(fault?: FaultType) {
+function toTaskCommitment(commitment: Commitment): MeetingCommitment {
+  const type =
+    commitment.actionType === "create_issue"
+      ? "investigation"
+      : commitment.actionType === "schedule_event"
+        ? "schedule_change"
+        : commitment.actionType === "send_email"
+          ? "follow_up_message"
+          : "decision_record";
+  const recipient = commitment.description.match(/\bto\s+(.+)$/i)?.[1]?.trim();
+
+  return {
+    context: commitment.sourceQuote,
+    due: commitment.deadline ?? undefined,
+    id: commitment.id,
+    owner: commitment.owner || undefined,
+    recipient,
+    subject: commitment.description,
+    summary: commitment.description,
+    type
+  };
+}
+
+function makeDryRunExecution(fault?: FaultType) {
   const records = new Map<string, unknown>();
   const seenEffects = new Set<string>();
   let failedOnce = false;
   let duplicateSideEffect = false;
 
-  const adapter: MeetingIntegrationAdapter = {
-    createDraft: async (action) => {
+  return {
+    duplicateSideEffect: () => duplicateSideEffect,
+    execute: async (action: PlannedMeetingAction) => {
       if (fault === "gmail_auth_failure" && !failedOnce) {
         failedOnce = true;
         throw new Error("GMAIL_AUTH_FAILED");
       }
 
-      const id = `draft_${records.size + 1}`;
-      duplicateSideEffect = duplicateSideEffect || seenEffects.has(`draft:${action.to}:${action.subject}`);
-      seenEffects.add(`draft:${action.to}:${action.subject}`);
-      records.set(id, { id });
-      return { externalId: id, provider: "gmail", raw: action };
-    },
-    createIssue: async (action) => {
-      if (fault === "github_timeout" && !failedOnce) {
+      if (fault === "github_timeout" && action.type === "github.create_issue" && !failedOnce) {
         failedOnce = true;
         throw new Error("GITHUB_TIMEOUT");
       }
 
-      const id = `issue_${records.size + 1}`;
-      duplicateSideEffect = duplicateSideEffect || seenEffects.has(`issue:${action.title}`);
-      seenEffects.add(`issue:${action.title}`);
-      records.set(id, { title: action.title });
-      return { externalId: id, provider: "github", raw: action };
+      if (action.type === "github.create_issue") {
+        const id = `issue_${records.size + 1}`;
+        duplicateSideEffect = duplicateSideEffect || seenEffects.has(`issue:${action.input.title}`);
+        seenEffects.add(`issue:${action.input.title}`);
+        records.set(id, { title: action.input.title });
+        return { externalId: id, provider: "github" as const, raw: action.input };
+      }
+
+      if (action.type === "calendar.update_event") {
+        const id = `event_${records.size + 1}`;
+        duplicateSideEffect = duplicateSideEffect || seenEffects.has(`event:${action.input.newTime}`);
+        seenEffects.add(`event:${action.input.newTime}`);
+        records.set(id, { start: { dateTime: action.input.newTime } });
+        return { externalId: id, provider: "google_calendar" as const, raw: action.input };
+      }
+
+      if (action.type === "memory.record_decision") {
+        const id = `decision_${records.size + 1}`;
+        records.set(id, { recorded: action.input.decision });
+        return { externalId: id, provider: "memory" as const, raw: action.input };
+      }
+
+      const id = `draft_${records.size + 1}`;
+      duplicateSideEffect = duplicateSideEffect || seenEffects.has(`draft:${action.input.recipient}:${action.input.subject}`);
+      seenEffects.add(`draft:${action.input.recipient}:${action.input.subject}`);
+      records.set(id, { id });
+      return { externalId: id, provider: "gmail" as const, raw: action.input };
     },
-    createOrUpdateEvent: async (action) => {
-      const id = `event_${records.size + 1}`;
-      duplicateSideEffect = duplicateSideEffect || seenEffects.has(`event:${action.newTime}`);
-      seenEffects.add(`event:${action.newTime}`);
-      records.set(id, { start: { dateTime: action.newTime } });
-      return { externalId: id, provider: "google_calendar", raw: action };
-    },
-    getDraft: async (id) => records.get(id) as { id?: string; message?: { id?: string } },
-    getEvent: async (id) => records.get(id) as { start?: { dateTime?: string } },
-    getIssue: async (id) => {
+    verify: async (_action: PlannedMeetingAction, result: { externalId: string }) => {
       if (fault === "crash_after_execute_before_verify" && !failedOnce) {
         failedOnce = true;
         throw new Error("PROCESS_KILLED_AFTER_EXECUTE");
       }
 
-      return records.get(id) as { title?: string };
+      return {
+        observed: records.get(result.externalId),
+        passed: records.has(result.externalId)
+      };
     }
-  };
-
-  return {
-    adapter,
-    duplicateSideEffect: () => duplicateSideEffect
   };
 }
 
 async function runPipeline(transcript: TranscriptFixture, label: LabelFixture, fault?: FaultType) {
   const storage = openStorage(":memory:");
-  const dryRun = makeDryRunIntegrations(fault);
+  const dryRun = makeDryRunExecution(fault);
 
   runMigrations(storage);
 
@@ -116,17 +144,29 @@ async function runPipeline(transcript: TranscriptFixture, label: LabelFixture, f
       fault === "malformed_llm_output"
         ? new ScriptedModelProvider(["{ broken json", JSON.stringify(label.commitments)])
         : new ScriptedModelProvider([JSON.stringify(label.commitments)]);
-    const result = await runMeetingPipeline(storage, {
-      approve: async () => "yes",
-      integrations: dryRun.adapter,
-      provider,
+    const extraction = await extractCommitments(transcript.text, provider);
+
+    if (extraction.status === "failed") {
+      throw new Error(extraction.error);
+    }
+
+    const commitments = extraction.commitments.map(toTaskCommitment);
+    const plan = planMeetingCommitments(commitments);
+    const result = await runMeetingExecution(storage, {
+      approvals: Object.fromEntries(plan.actions.filter((action) => action.requiresApproval).map((action) => [action.id, "yes" as const])),
+      commitments,
+      execute: dryRun.execute,
       title: transcript.id,
-      transcript: transcript.text
+      transcript: transcript.text,
+      verify: dryRun.verify
     });
 
     return {
       duplicateSideEffect: dryRun.duplicateSideEffect(),
-      result
+      result: {
+        commitments: extraction.commitments,
+        executions: result.executions
+      }
     };
   } finally {
     storage.sqlite.close();
@@ -158,8 +198,8 @@ async function benchmark() {
     const usedExpected = new Set<number>();
     expectedCount += label.commitments.length;
     extractedCount += result.commitments.length;
-    executionCount += result.actions.length;
-    verifiedCount += result.actions.filter((action) => action.status === "verified").length;
+    executionCount += result.executions.length;
+    verifiedCount += result.executions.filter((action) => action.status === "verified").length;
 
     for (const actual of result.commitments) {
       const expectedIndex = label.commitments.findIndex((expected, index) => {
@@ -190,7 +230,7 @@ async function benchmark() {
 
   for (const fault of ["malformed_llm_output", "github_timeout", "gmail_auth_failure", "crash_after_execute_before_verify"] as FaultType[]) {
     const { duplicateSideEffect, result } = await runPipeline(faultTranscript, faultLabel, fault);
-    const recovered = result.actions.length > 0 && result.actions.every((action) => action.status === "verified");
+    const recovered = result.executions.length > 0 && result.executions.every((action) => action.status === "verified");
 
     faults.push({
       duplicateSideEffect,

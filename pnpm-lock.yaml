@@ -32,6 +32,9 @@ importers:
       '@yomeets/benchmark-phase1':
         specifier: workspace:*
         version: link:../../tests/benchmarks/phase1
+      '@yomeets/integrations':
+        specifier: workspace:*
+        version: link:../../packages/integrations
       '@yomeets/meeting-engine':
         specifier: workspace:*
         version: link:../../packages/meeting-engine
@@ -94,15 +97,9 @@ importers:
 
   packages/meeting-engine:
     dependencies:
-      '@yomeets/integrations':
-        specifier: workspace:*
-        version: link:../integrations
       '@yomeets/model-router':
         specifier: workspace:*
         version: link:../model-router
-      '@yomeets/policy-engine':
-        specifier: workspace:*
-        version: link:../policy-engine
       '@yomeets/storage':
         specifier: workspace:*
         version: link:../storage

@@ -15,6 +15,7 @@
   "dependencies": {
     "@yomeets/agent-core": "workspace:*",
     "@yomeets/benchmark-phase1": "workspace:*",
+    "@yomeets/integrations": "workspace:*",
     "@yomeets/meeting-engine": "workspace:*",
     "@yomeets/model-router": "workspace:*",
     "@yomeets/policy-engine": "workspace:*",

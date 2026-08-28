@@ -10,6 +10,7 @@
   "references": [
     { "path": "../../packages/agent-core" },
     { "path": "../../tests/benchmarks/phase1" },
+    { "path": "../../packages/integrations" },
     { "path": "../../packages/meeting-engine" },
     { "path": "../../packages/model-router" },
     { "path": "../../packages/policy-engine" },

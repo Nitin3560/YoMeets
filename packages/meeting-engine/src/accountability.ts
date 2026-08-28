@@ -1,4 +1,3 @@
-import { GitHubIntegration, GmailIntegration, GoogleCalendarIntegration } from "@yomeets/integrations";
 import {
   MeetingCommitmentRepository,
   PlannedMeetingActionRepository,
@@ -23,18 +22,6 @@ export type MeetingStatusAdapter = {
   getEvent(id: string): Promise<unknown>;
   getDraft(id: string): Promise<{ id?: string; message?: { id?: string } }>;
 };
-
-function defaultStatusAdapter(): MeetingStatusAdapter {
-  return {
-    getDraft: (id) => new GmailIntegration().getDraft({ draftId: id }),
-    getEvent: (id) => new GoogleCalendarIntegration().getEvent({ eventId: id }),
-    getIssue: (id) => new GitHubIntegration().getIssue({
-      issueNumber: id,
-      owner: process.env.GITHUB_OWNER ?? "OWNER_REQUIRED",
-      repo: process.env.GITHUB_REPO ?? "REPO_REQUIRED"
-    })
-  };
-}
 
 async function externalStatus(actionType: string | undefined, externalId: string | null, adapter: MeetingStatusAdapter) {
   if (!externalId) {
@@ -85,7 +72,7 @@ function statusFromExternal(status: string): MeetingCommitmentStatus {
 
 export async function loadMeetingOutstandingCommitments(
   storage: Storage,
-  adapter: MeetingStatusAdapter = defaultStatusAdapter()
+  adapter: MeetingStatusAdapter
 ): Promise<MeetingOutstandingCommitment[]> {
   const commitments = new MeetingCommitmentRepository(storage);
   const plannedActions = new PlannedMeetingActionRepository(storage);
