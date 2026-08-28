@@ -1,0 +1,12 @@
+[package]
+name = "yomeets"
+version = "0.1.0"
+description = "Local live meeting assistant"
+authors = ["YoMeets"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

@@ -86,3 +86,13 @@ pnpm smoke:postgres-memory
 The smoke command creates the pgvector table, upserts local meeting memory, and searches it through Postgres.
 
 When `GEMINI_API_KEY` is present, Postgres memory uses `gemini-embedding-2` with 768-dimensional vectors. Without a key, it falls back to a local deterministic vector for development only.
+
+## Desktop Shell
+
+The MVP shell is Tauri-based and wraps the local dashboard with an always-on-top listening overlay window.
+
+```bash
+pnpm desktop:dev
+```
+
+Packaging requires the normal Tauri macOS toolchain to be installed locally.

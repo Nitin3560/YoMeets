@@ -1,0 +1,15 @@
+{
+  "name": "@yomeets/desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/check-tauri-config.mjs",
+    "dev": "tauri dev",
+    "package": "tauri build",
+    "test": "node scripts/check-tauri-config.mjs",
+    "typecheck": "node scripts/check-tauri-config.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

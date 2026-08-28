@@ -9,6 +9,8 @@
     "demo:live-meeting": "pnpm build && node --experimental-strip-types scripts/live-meeting-demo.ts",
     "demo:seed-dashboard": "pnpm build && node --experimental-strip-types scripts/seed-dashboard-state.ts",
     "demo:transcript-lines": "pnpm build && node --experimental-strip-types scripts/live-transcript-lines-demo.ts",
+    "desktop:dev": "pnpm --filter @yomeets/desktop dev",
+    "desktop:package": "pnpm --filter @yomeets/desktop package",
     "dev": "turbo run dev",
     "eval:live-core": "pnpm demo:live-meeting",
     "lint": "turbo run lint",
