@@ -16,6 +16,11 @@ export {
   type RunMeetingExecutionInput,
   type RunMeetingExecutionResult
 } from "./meeting-execution.js";
+export {
+  executeLiveMeetingActions,
+  type ExecuteLiveMeetingActionsInput,
+  type ExecuteLiveMeetingActionsResult
+} from "./live-action-execution.js";
 export { previewScenario, type ScenarioPreview } from "./scenario.js";
 export { checkpointForFailure, checkpointForLoop, type RecoveryCheckpoint } from "./recovery.js";
 export { decideRetry, type RetryDecision } from "./retry.js";

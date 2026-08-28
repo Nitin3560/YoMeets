@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { stdout } from "node:process";
-import { formatTaskChecklist, previewScenario, runMeetingExecution, runPhase0Task } from "@yomeets/agent-core";
+import { executeLiveMeetingActions, formatTaskChecklist, previewScenario, runMeetingExecution, runPhase0Task } from "@yomeets/agent-core";
 import {
   formatBenchmarkSummary,
   formatFaultBenchmarkSummary,
@@ -504,6 +504,55 @@ async function processMeeting(args: string[]) {
   }
 }
 
+async function executeLiveActions(args: string[]) {
+  const meetingId = args.find((arg) => !arg.startsWith("--"));
+
+  if (!meetingId) {
+    throw new Error("execute-live-actions requires a meeting id");
+  }
+
+  const storage = openStorage();
+
+  runMigrations(storage);
+
+  try {
+    const dryRun = hasFlag(args, "--dry-run");
+    const dryRunHooks = dryRun ? dryRunExecution() : undefined;
+    const approvals: Record<string, "yes"> = {};
+
+    if (hasFlag(args, "--yes")) {
+      for (const action of new CanonicalMeetingActionRepository(storage).listForMeeting(meetingId)) {
+        approvals[`${action.id}_github_issue`] = "yes";
+      }
+    }
+
+    const result = await executeLiveMeetingActions(storage, {
+      approvals,
+      execute: dryRunHooks?.execute,
+      meetingId,
+      verify: dryRunHooks?.verify
+    });
+
+    stdout.write(`Blocked actions: ${result.blockedActionIds.length}\n`);
+
+    for (const blocked of result.blockedActionIds) {
+      stdout.write(`- needs identity: ${blocked}\n`);
+    }
+
+    for (const execution of result.executions) {
+      stdout.write(`${execution.status}: ${execution.actionId}`);
+
+      if (execution.externalId) {
+        stdout.write(` -> ${execution.externalId}`);
+      }
+
+      stdout.write("\n");
+    }
+  } finally {
+    storage.sqlite.close();
+  }
+}
+
 async function approveTask(args: string[]) {
   const [taskId, ...labelParts] = args;
   const label = labelParts.join(" ").trim();
@@ -575,6 +624,11 @@ async function main() {
     return;
   }
 
+  if (command === "execute-live-actions") {
+    await executeLiveActions(args);
+    return;
+  }
+
   if (command === "preview") {
     await previewTask(args);
     return;
@@ -585,7 +639,7 @@ async function main() {
     return;
   }
 
-  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets process-meeting notes.txt --dry-run\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
+  stdout.write("Usage:\n  yomeets serve\n  yomeets run \"Find meeting follow-ups\"\n  yomeets transcript \"Find meeting follow-ups\"\n  yomeets phase0 \"Find John Smith at Google and send a connection request with 'Hello John.'\"\n  yomeets benchmark phase1\n  yomeets benchmark phase2\n  yomeets benchmark phase3\n  yomeets benchmark phase4\n  yomeets demo phase5 --record artifacts/phase5-demo.cast\n  yomeets process-meeting notes.txt --dry-run\n  yomeets execute-live-actions <meetingId> --dry-run --yes\n  yomeets preview \"Find John Smith\" --intent-json '{...}'\n  yomeets approve <taskId> \"Send connection request\"\n");
 }
 
 main()
