@@ -19,6 +19,7 @@ export type SttSegment = {
   endMs: number;
   text: string;
   final: boolean;
+  speakerLabel?: string;
 };
 
 export type DiarizedSegment = SttSegment & {
@@ -44,6 +45,9 @@ type DeepgramMessage = {
   channel?: {
     alternatives?: Array<{
       transcript?: string;
+      words?: Array<{
+        speaker?: number | string;
+      }>;
     }>;
   };
   duration?: number;
@@ -65,6 +69,7 @@ type WebSocketLike = {
 
 export type DeepgramStreamingSttOptions = {
   apiKey?: string;
+  diarize?: boolean;
   endpointing?: number;
   encoding?: "linear16" | "linear32" | "mulaw" | "alaw" | "opus" | "ogg-opus";
   interimResults?: boolean;
@@ -292,6 +297,7 @@ export function buildDeepgramListenUrl(options: DeepgramStreamingSttOptions = {}
   url.searchParams.set("sample_rate", String(options.sampleRate ?? 16000));
   url.searchParams.set("endpointing", String(options.endpointing ?? 300));
   url.searchParams.set("interim_results", String(options.interimResults ?? true));
+  url.searchParams.set("diarize", String(options.diarize ?? false));
 
   return url.toString();
 }
@@ -300,9 +306,10 @@ export function parseDeepgramSttMessage(
   meetingId: string,
   id: string,
   raw: unknown
-): SttSegment | undefined {
+): (SttSegment & { speakerLabel?: string }) | undefined {
   const message = typeof raw === "string" ? JSON.parse(raw) as DeepgramMessage : raw as DeepgramMessage;
-  const text = message.channel?.alternatives?.[0]?.transcript?.trim();
+  const alternative = message.channel?.alternatives?.[0];
+  const text = alternative?.transcript?.trim();
 
   if (!text || message.type === "Metadata" || message.type === "UtteranceEnd" || message.type === "SpeechStarted") {
     return undefined;
@@ -310,12 +317,14 @@ export function parseDeepgramSttMessage(
 
   const startMs = Math.round((message.start ?? 0) * 1000);
   const endMs = Math.round(((message.start ?? 0) + (message.duration ?? 0)) * 1000);
+  const speaker = alternative?.words?.find((word) => word.speaker !== undefined)?.speaker;
 
   return {
     endMs: endMs > startMs ? endMs : startMs + Math.max(900, text.length * 35),
     final: Boolean(message.is_final),
     id,
     meetingId,
+    speakerLabel: speaker === undefined ? undefined : `S${Number(speaker) + 1}`,
     startMs,
     text
   };
@@ -399,6 +408,23 @@ export class DeepgramStreamingSttProvider implements StreamingSttProvider {
 
   async close(): Promise<void> {
     this.socket?.close();
+  }
+}
+
+export class DeepgramDiarizationProvider implements StreamingDiarizationProvider {
+  async *diarize(segments: AsyncIterable<SttSegment>): AsyncIterable<DiarizedSegment> {
+    for await (const segment of segments) {
+      const speakerLabel = "speakerLabel" in segment && typeof segment.speakerLabel === "string"
+        ? segment.speakerLabel
+        : "S1";
+
+      yield {
+        ...segment,
+        confidence: speakerLabel === "S1" && !("speakerLabel" in segment) ? 0.5 : 0.9,
+        source: "live_audio",
+        speakerLabel
+      };
+    }
   }
 }
 

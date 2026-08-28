@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   AudioProviderNotConfiguredError,
+  DeepgramDiarizationProvider,
   DeepgramStreamingSttProvider,
   FixtureAudioPipeline,
   LiveTranscriptLinePipeline,
@@ -107,12 +108,15 @@ assert.equal(deepgramUrl.hostname, "api.deepgram.com");
 assert.equal(deepgramUrl.searchParams.get("model"), "nova-3");
 assert.equal(deepgramUrl.searchParams.get("encoding"), "linear16");
 assert.equal(deepgramUrl.searchParams.get("sample_rate"), "16000");
+assert.equal(deepgramUrl.searchParams.get("diarize"), "false");
+assert.equal(new URL(buildDeepgramListenUrl({ diarize: true })).searchParams.get("diarize"), "true");
 
 assert.deepEqual(parseDeepgramSttMessage("meeting_deepgram", "dg_1", JSON.stringify({
   channel: {
     alternatives: [
       {
-        transcript: "Nitin will create the issue."
+        transcript: "Nitin will create the issue.",
+        words: [{ speaker: 1 }]
       }
     ]
   },
@@ -124,6 +128,7 @@ assert.deepEqual(parseDeepgramSttMessage("meeting_deepgram", "dg_1", JSON.string
   final: true,
   id: "dg_1",
   meetingId: "meeting_deepgram",
+  speakerLabel: "S2",
   startMs: 2000,
   text: "Nitin will create the issue."
 });
@@ -147,7 +152,10 @@ class FakeDeepgramSocket {
       this.onmessage?.({
         data: JSON.stringify({
           channel: {
-            alternatives: [{ transcript: "Sarah will check the timeout." }]
+            alternatives: [{
+              transcript: "Sarah will check the timeout.",
+              words: [{ speaker: 0 }]
+            }]
           },
           duration: 2,
           is_final: true,
@@ -186,8 +194,29 @@ for await (const segment of deepgram.transcribe((async function* () {
 
 assert.equal(deepgramSegments.length, 1);
 assert.equal(deepgramSegments[0]?.meetingId, "meeting_deepgram");
+assert.equal(deepgramSegments[0]?.speakerLabel, "S1");
 assert.equal(deepgramSegments[0]?.text, "Sarah will check the timeout.");
 assert.equal(Buffer.isBuffer(fakeSocket.sent[0]), true);
+
+const deepgramDiarized = [];
+const diarizer = new DeepgramDiarizationProvider();
+
+for await (const segment of diarizer.diarize((async function* () {
+  yield {
+    endMs: 3000,
+    final: true,
+    id: "dg_2",
+    meetingId: "meeting_deepgram",
+    speakerLabel: "S3",
+    startMs: 1000,
+    text: "Let's switch to Postgres."
+  };
+})())) {
+  deepgramDiarized.push(segment);
+}
+
+assert.equal(deepgramDiarized[0]?.speakerLabel, "S3");
+assert.equal(deepgramDiarized[0]?.source, "live_audio");
 
 assert.deepEqual(macOsFfmpegArgs({ device: "BlackHole 2ch", sampleRate: 16000 }).slice(0, 7), [
   "-hide_banner",
