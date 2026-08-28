@@ -16,8 +16,10 @@ import {
   runPhase3SideEffectSafetyProof
 } from "@yomeets/benchmark-phase1";
 import {
+  evidenceClipsForMeeting,
   extractCommitments,
   formatMeetingOutstandingCommitments,
+  reconcileMeeting,
   loadMeetingOutstandingCommitments,
   loadStoredMeetingCommitments,
   type Commitment,
@@ -26,7 +28,17 @@ import {
 import { GitHubIntegration, GmailIntegration, GoogleCalendarIntegration } from "@yomeets/integrations";
 import { GeminiModelProvider, LocalHeuristicModelProvider, OpenAiModelProvider, ScriptedModelProvider } from "@yomeets/model-router";
 import { createApprovalRequest } from "@yomeets/policy-engine";
-import { openStorage, runMigrations } from "@yomeets/storage";
+import {
+  CanonicalMeetingActionRepository,
+  MeetingDecisionRepository,
+  MeetingParticipantRepository,
+  MeetingQuestionRepository,
+  MeetingRepository,
+  SpeakerClusterRepository,
+  TranscriptSegmentRepository,
+  openStorage,
+  runMigrations
+} from "@yomeets/storage";
 import { normalizeTranscript, planMeetingCommitments, type MeetingCommitment, type PlannedMeetingAction } from "@yomeets/task-engine";
 import { promptForApproval } from "./approval.js";
 
@@ -114,6 +126,56 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     return;
   }
 
+  if (method === "GET" && url.pathname === "/v1/meetings") {
+    const storage = openStorage();
+
+    runMigrations(storage);
+
+    try {
+      sendJson(response, 200, {
+        meetings: new MeetingRepository(storage).listAll()
+      });
+    } finally {
+      storage.sqlite.close();
+    }
+
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/v1/meetings/latest") {
+    const storage = openStorage();
+
+    runMigrations(storage);
+
+    try {
+      const meeting = new MeetingRepository(storage).listAll()[0];
+
+      sendJson(response, meeting ? 200 : 404, meeting ? meetingState(storage, meeting.id) : { error: "no meetings found" });
+    } finally {
+      storage.sqlite.close();
+    }
+
+    return;
+  }
+
+  const meetingMatch = url.pathname.match(/^\/v1\/meetings\/([^/]+)$/);
+
+  if (method === "GET" && meetingMatch?.[1]) {
+    const storage = openStorage();
+
+    runMigrations(storage);
+
+    try {
+      const meeting = new MeetingRepository(storage).findById(meetingMatch[1]);
+
+      sendJson(response, meeting ? 200 : 404, meeting ? meetingState(storage, meeting.id) : { error: "meeting not found" });
+    } finally {
+      storage.sqlite.close();
+    }
+
+    return;
+  }
+
   if (method === "POST" && url.pathname === "/v1/tasks") {
     const body = await readJson(request);
     const command = commandFromRequestBody(body);
@@ -128,6 +190,20 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   }
 
   sendJson(response, 404, { error: "not found" });
+}
+
+function meetingState(storage: ReturnType<typeof openStorage>, meetingId: string) {
+  return {
+    actions: new CanonicalMeetingActionRepository(storage).listForMeeting(meetingId),
+    clips: evidenceClipsForMeeting(storage, meetingId),
+    decisions: new MeetingDecisionRepository(storage).listForMeeting(meetingId),
+    meeting: new MeetingRepository(storage).findById(meetingId),
+    participants: new MeetingParticipantRepository(storage).listForMeeting(meetingId),
+    questions: new MeetingQuestionRepository(storage).listForMeeting(meetingId),
+    reconciliation: reconcileMeeting(storage, meetingId),
+    speakerClusters: new SpeakerClusterRepository(storage).listForMeeting(meetingId),
+    transcriptSegments: new TranscriptSegmentRepository(storage).listForMeeting(meetingId)
+  };
 }
 
 function startServer() {

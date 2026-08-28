@@ -31,23 +31,23 @@
     <main>
       <header class="topbar">
         <div>
-          <p class="eyebrow">Engineering Sync</p>
+          <p class="eyebrow" data-meeting-title>Engineering Sync</p>
           <h1>Live Meeting Intelligence</h1>
         </div>
-        <div class="listening"><span></span> Listening</div>
+        <div class="listening" data-api-status><span></span> Local API offline</div>
       </header>
 
       <section class="metrics">
         <article>
-          <strong>4</strong>
+          <strong data-action-count>4</strong>
           <span>actions</span>
         </article>
         <article>
-          <strong>3</strong>
+          <strong data-decision-count>3</strong>
           <span>decisions</span>
         </article>
         <article>
-          <strong>2</strong>
+          <strong data-question-count>2</strong>
           <span>open questions</span>
         </article>
         <article>
@@ -62,6 +62,7 @@
             <h2>Live Transcript</h2>
             <button title="Open evidence clips">Clips</button>
           </div>
+          <div data-transcript>
           <article class="turn">
             <span>S1</span>
             <p>Sarah, can you check the auth timeout?</p>
@@ -82,6 +83,7 @@
             <p>Actually, let's switch to Postgres, Redis isn't working out.</p>
             <time>01:06</time>
           </article>
+          </div>
         </section>
 
         <section class="live-state">
@@ -91,6 +93,7 @@
             <button>Questions</button>
           </div>
 
+          <div data-actions>
           <article class="item needs">
             <div>
               <p class="label">Needs identity</p>
@@ -123,10 +126,12 @@
             </div>
             <button>Open</button>
           </article>
+          </div>
         </section>
       </section>
     </main>
 
     <div class="overlay-dot" title="YoMeets is listening"></div>
+    <script src="./app.js"></script>
   </body>
 </html>
