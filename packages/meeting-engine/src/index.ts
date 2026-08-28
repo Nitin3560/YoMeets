@@ -54,6 +54,7 @@ export {
 } from "./live-meeting.js";
 export {
   evidenceClipsForMeeting,
+  applyMeetingReconciliation,
   reconcileMeeting,
   recordMeetingAudio,
   type EvidenceClip,

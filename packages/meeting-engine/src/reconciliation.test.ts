@@ -10,7 +10,7 @@ import {
   openStorage,
   runMigrations
 } from "@yomeets/storage";
-import { evidenceClipsForMeeting, reconcileMeeting, recordMeetingAudio } from "./reconciliation.js";
+import { applyMeetingReconciliation, evidenceClipsForMeeting, reconcileMeeting, recordMeetingAudio } from "./reconciliation.js";
 
 const storage = openStorage(join(mkdtempSync(join(tmpdir(), "yomeets-reconciliation-")), "test.sqlite"));
 
@@ -26,14 +26,14 @@ try {
   const questions = new MeetingQuestionRepository(storage);
 
   recordMeetingAudio(storage, meeting.id, "/tmp/yomeets/reconcile.wav");
-  actions.create({
+  const unresolved = actions.create({
     description: "Fix auth timeout",
     evidence: [{ clipEndMs: 2000, clipStartMs: 1000, segmentId: "seg_1" }],
     meetingId: meeting.id,
     ownerRef: { speakerClusterId: "S2" },
     status: "needs_identity"
   });
-  actions.create({
+  const richer = actions.create({
     description: "Fix auth timeout.",
     evidence: [{ clipEndMs: 2500, clipStartMs: 2100, segmentId: "seg_2" }],
     meetingId: meeting.id,
@@ -68,6 +68,13 @@ try {
   assert.equal(report.unresolvedActionIds.length, 1);
   assert.deepEqual(report.supersededDecisionIds, [firstDecision.id]);
   assert.equal(report.openQuestionIds.length, 1);
+
+  const applied = applyMeetingReconciliation(storage, meeting.id);
+  const rows = actions.listForMeeting(meeting.id);
+
+  assert.equal(applied.completedDuplicateActionIds.includes(unresolved.id), true);
+  assert.equal(rows.find((action) => action.id === unresolved.id)?.status, "completed");
+  assert.equal(rows.find((action) => action.id === richer.id)?.status, "open");
 } finally {
   storage.sqlite.close();
 }

@@ -22,6 +22,11 @@ export type ReconciliationReport = {
   evidenceClips: EvidenceClip[];
 };
 
+export type AppliedReconciliation = ReconciliationReport & {
+  completedDuplicateActionIds: string[];
+  normalizedUnresolvedActionIds: string[];
+};
+
 function normalizeText(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -94,5 +99,47 @@ export function reconcileMeeting(storage: Storage, meetingId: string): Reconcili
     unresolvedActionIds: actions
       .filter((action) => action.status === "needs_identity" || !action.ownerRef.participantId)
       .map((action) => action.id)
+  };
+}
+
+function actionCompleteness(action: MeetingAction) {
+  return (action.ownerRef.participantId ? 2 : 0) + (action.deadline ? 1 : 0) + action.evidence.length;
+}
+
+export function applyMeetingReconciliation(storage: Storage, meetingId: string): AppliedReconciliation {
+  const report = reconcileMeeting(storage, meetingId);
+  const actions = new CanonicalMeetingActionRepository(storage);
+  const byId = new Map(actions.listForMeeting(meetingId).map((action) => [action.id, actionFromRow(action)]));
+  const completedDuplicateActionIds: string[] = [];
+  const normalizedUnresolvedActionIds: string[] = [];
+
+  for (const group of report.duplicateActionGroups) {
+    const ranked = group
+      .map((id) => byId.get(id))
+      .filter((action): action is MeetingAction => Boolean(action))
+      .sort((first, second) => actionCompleteness(second) - actionCompleteness(first));
+    const keep = ranked[0];
+
+    for (const duplicate of ranked.slice(1)) {
+      if (duplicate.id !== keep?.id && duplicate.status !== "completed") {
+        actions.update(duplicate.id, { status: "completed" });
+        completedDuplicateActionIds.push(duplicate.id);
+      }
+    }
+  }
+
+  for (const actionId of report.unresolvedActionIds) {
+    const action = byId.get(actionId);
+
+    if (action && action.status !== "needs_identity") {
+      actions.update(actionId, { status: "needs_identity" });
+      normalizedUnresolvedActionIds.push(actionId);
+    }
+  }
+
+  return {
+    ...reconcileMeeting(storage, meetingId),
+    completedDuplicateActionIds,
+    normalizedUnresolvedActionIds
   };
 }
