@@ -26,15 +26,25 @@ The dashboard connects to `127.0.0.1:47821`, receives meeting state over SSE, an
 - Dashboard Confirm button.
 - Dashboard Approve button using dry-run execution.
 - Evidence clip metadata display.
+- Dedicated YoMeets Postgres + pgvector container.
+- Deepgram streaming STT adapter for `linear16` audio.
+- macOS ffmpeg recorder boundary for microphone or BlackHole-style system audio devices.
 
 ## What Still Needs Real Providers
 
-- Native microphone and system-audio capture.
-- Streaming STT audio input. Deepgram credentials and adapter support are available with `DEEPGRAM_API_KEY`.
+- Native audio permission flow in the desktop shell.
 - Streaming diarization.
 - Playable audio file generation.
 - Real OAuth/token setup for Google and GitHub.
-- Postgres/pgvector semantic memory.
+- Postgres-backed Ask YoMeets wiring in the product UI.
+
+## macOS Audio
+
+For the MVP, install `ffmpeg` and a system-audio device such as BlackHole 2ch. The recorder uses ffmpeg's `avfoundation` input and sends `linear16` PCM chunks to the STT provider.
+
+```bash
+brew install ffmpeg
+```
 
 Use:
 

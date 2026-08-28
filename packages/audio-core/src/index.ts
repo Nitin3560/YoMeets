@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+
 export type AudioSourceKind = "microphone" | "system" | "mixed" | "fixture";
 
 export type AudioChunk = {
@@ -73,6 +75,22 @@ export type DeepgramStreamingSttOptions = {
   webSocketFactory?: (url: string, protocols: string[]) => WebSocketLike;
 };
 
+type AudioProcess = {
+  kill(signal?: NodeJS.Signals | number): boolean;
+  stderr?: AsyncIterable<Buffer>;
+  stdout: AsyncIterable<Buffer>;
+};
+
+export type MacOsFfmpegRecorderOptions = {
+  channels?: number;
+  chunkMs?: number;
+  device?: string;
+  ffmpegPath?: string;
+  sampleRate?: number;
+  source?: Extract<AudioSourceKind, "microphone" | "system" | "mixed">;
+  spawnProcess?: (command: string, args: string[]) => AudioProcess;
+};
+
 export type LiveAudioProviderConfig = {
   meetingAudioPath: string;
   microphoneDeviceId?: string;
@@ -115,6 +133,83 @@ export class NotConfiguredAudioRecorder implements AudioRecorder {
   }
 
   async stop(): Promise<void> {}
+}
+
+function spawnAudioProcess(command: string, args: string[]): AudioProcess {
+  return spawn(command, args, {
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+}
+
+export function macOsFfmpegArgs(options: MacOsFfmpegRecorderOptions = {}) {
+  const channels = options.channels ?? 1;
+  const device = options.device ?? "default";
+  const sampleRate = options.sampleRate ?? 16000;
+
+  return [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-f",
+    "avfoundation",
+    "-i",
+    `:${device}`,
+    "-ac",
+    String(channels),
+    "-ar",
+    String(sampleRate),
+    "-f",
+    "s16le",
+    "pipe:1"
+  ];
+}
+
+export class MacOsFfmpegAudioRecorder implements AudioRecorder {
+  private process?: AudioProcess;
+
+  constructor(private readonly options: MacOsFfmpegRecorderOptions = {}) {}
+
+  async *start(meetingId: string): AsyncIterable<AudioChunk> {
+    const sampleRate = this.options.sampleRate ?? 16000;
+    const channels = this.options.channels ?? 1;
+    const bytesPerMs = (sampleRate * channels * 2) / 1000;
+    const process = (this.options.spawnProcess ?? spawnAudioProcess)(
+      this.options.ffmpegPath ?? "ffmpeg",
+      macOsFfmpegArgs(this.options)
+    );
+    this.process = process;
+    let cursorMs = 0;
+    let index = 0;
+
+    void (async () => {
+      for await (const _chunk of process.stderr ?? []) {
+      }
+    })();
+
+    for await (const chunk of process.stdout) {
+      if (chunk.length === 0) {
+        continue;
+      }
+
+      const startMs = Math.round(cursorMs);
+      const durationMs = chunk.length / bytesPerMs;
+      cursorMs += durationMs;
+      index += 1;
+
+      yield {
+        endMs: Math.round(cursorMs),
+        id: `audio_chunk_${index}`,
+        meetingId,
+        pcmBase64: chunk.toString("base64"),
+        source: this.options.source ?? "microphone",
+        startMs
+      };
+    }
+  }
+
+  async stop(): Promise<void> {
+    this.process?.kill("SIGTERM");
+  }
 }
 
 export class NotConfiguredSttProvider implements StreamingSttProvider {

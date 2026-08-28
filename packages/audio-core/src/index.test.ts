@@ -4,9 +4,11 @@ import {
   DeepgramStreamingSttProvider,
   FixtureAudioPipeline,
   LiveTranscriptLinePipeline,
+  MacOsFfmpegAudioRecorder,
   NotConfiguredAudioRecorder,
   ProviderBackedLiveAudioPipeline,
   buildDeepgramListenUrl,
+  macOsFfmpegArgs,
   parseDeepgramSttMessage,
   parseLiveTranscriptLine,
   type AudioChunk,
@@ -186,6 +188,51 @@ assert.equal(deepgramSegments.length, 1);
 assert.equal(deepgramSegments[0]?.meetingId, "meeting_deepgram");
 assert.equal(deepgramSegments[0]?.text, "Sarah will check the timeout.");
 assert.equal(Buffer.isBuffer(fakeSocket.sent[0]), true);
+
+assert.deepEqual(macOsFfmpegArgs({ device: "BlackHole 2ch", sampleRate: 16000 }).slice(0, 7), [
+  "-hide_banner",
+  "-loglevel",
+  "error",
+  "-f",
+  "avfoundation",
+  "-i",
+  ":BlackHole 2ch"
+]);
+
+let killed = false;
+let recorderCommand = "";
+let recorderArgs: string[] = [];
+const recorder = new MacOsFfmpegAudioRecorder({
+  device: "MacBook Pro Microphone",
+  spawnProcess: (command, args) => {
+    recorderCommand = command;
+    recorderArgs = args;
+
+    return {
+      kill: () => {
+        killed = true;
+        return true;
+      },
+      stdout: (async function* () {
+        yield Buffer.alloc(3200);
+      })()
+    };
+  }
+});
+const audioChunks = [];
+
+for await (const chunk of recorder.start("meeting_audio")) {
+  audioChunks.push(chunk);
+}
+
+await recorder.stop();
+assert.equal(recorderCommand, "ffmpeg");
+assert.equal(recorderArgs.includes(":MacBook Pro Microphone"), true);
+assert.equal(killed, true);
+assert.equal(audioChunks[0]?.meetingId, "meeting_audio");
+assert.equal(audioChunks[0]?.startMs, 0);
+assert.equal(audioChunks[0]?.endMs, 100);
+assert.equal(Buffer.from(audioChunks[0]?.pcmBase64 ?? "", "base64").length, 3200);
 
 const liveTranscript = new LiveTranscriptLinePipeline([
   "00:01 S1: Sarah, can you check the auth timeout?",
