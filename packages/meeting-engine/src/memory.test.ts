@@ -12,7 +12,14 @@ import {
   openStorage,
   runMigrations
 } from "@yomeets/storage";
-import { askYoMeets, loadMeetingMemory, searchMeetingMemory } from "./memory.js";
+import {
+  LocalMeetingMemoryIndex,
+  PostgresMemoryNotConfiguredError,
+  PostgresPgvectorMemoryIndex,
+  askYoMeets,
+  loadMeetingMemory,
+  searchMeetingMemory
+} from "./memory.js";
 
 const storage = openStorage(join(mkdtempSync(join(tmpdir(), "yomeets-memory-")), "test.sqlite"));
 
@@ -73,6 +80,15 @@ try {
   assert.equal(mine[0]?.kind, "action");
   assert.equal(answer.citations.some((record) => record.id === "seg_postgres"), true);
   assert.match(answer.answer, /Postgres/);
+
+  const index = new LocalMeetingMemoryIndex(records);
+  const indexed = await index.search("migration Friday");
+
+  assert.equal(indexed[0]?.kind, "action");
+  await assert.rejects(
+    () => new PostgresPgvectorMemoryIndex("").search("anything"),
+    PostgresMemoryNotConfiguredError
+  );
 } finally {
   storage.sqlite.close();
 }

@@ -24,6 +24,50 @@ export type AskYoMeetsResult = {
   citations: MeetingMemoryRecord[];
 };
 
+export type MeetingMemoryIndex = {
+  search(query: string, limit?: number): Promise<MeetingMemoryRecord[]>;
+  upsert(records: MeetingMemoryRecord[]): Promise<void>;
+};
+
+export class PostgresMemoryNotConfiguredError extends Error {
+  constructor() {
+    super("Postgres/pgvector memory is not configured");
+    this.name = "PostgresMemoryNotConfiguredError";
+  }
+}
+
+export class LocalMeetingMemoryIndex implements MeetingMemoryIndex {
+  constructor(private readonly records: MeetingMemoryRecord[]) {}
+
+  async search(query: string, limit = 5): Promise<MeetingMemoryRecord[]> {
+    return searchMeetingMemory(query, this.records, limit);
+  }
+
+  async upsert(records: MeetingMemoryRecord[]): Promise<void> {
+    this.records.push(...records);
+  }
+}
+
+export class PostgresPgvectorMemoryIndex implements MeetingMemoryIndex {
+  constructor(private readonly connectionString = process.env.YOMEETS_POSTGRES_URL) {}
+
+  async search(_query: string, _limit = 5): Promise<MeetingMemoryRecord[]> {
+    if (!this.connectionString) {
+      throw new PostgresMemoryNotConfiguredError();
+    }
+
+    throw new PostgresMemoryNotConfiguredError();
+  }
+
+  async upsert(_records: MeetingMemoryRecord[]): Promise<void> {
+    if (!this.connectionString) {
+      throw new PostgresMemoryNotConfiguredError();
+    }
+
+    throw new PostgresMemoryNotConfiguredError();
+  }
+}
+
 function tokenize(text: string) {
   return new Set(text.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 2));
 }

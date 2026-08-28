@@ -141,6 +141,10 @@ function questionFromRow(row: ReturnType<MeetingQuestionRepository["create"]>): 
   };
 }
 
+function normalizeText(text: string) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 export function loadMeetingStateSummary(storage: Storage, meetingId: string): MeetingStateSummary {
   const actions = new CanonicalMeetingActionRepository(storage)
     .listForMeeting(meetingId)
@@ -206,9 +210,19 @@ export function applyOperations(
   const createdQuestions: MeetingQuestion[] = [];
   const resolvedQuestionIds: string[] = [];
   const updatedActionIds: string[] = [];
+  const existingActionTexts = new Set(actions.listForMeeting(meetingId).map((action) => normalizeText(action.description)));
+  const existingDecisionTexts = new Set(decisions.listForMeeting(meetingId).map((decision) => normalizeText(decision.text)));
+  const existingQuestionTexts = new Set(questions.listForMeeting(meetingId).map((question) => normalizeText(question.text)));
 
   for (const operation of ops) {
     if (operation.type === "CREATE_ACTION") {
+      const normalized = normalizeText(operation.description);
+
+      if (existingActionTexts.has(normalized)) {
+        continue;
+      }
+
+      existingActionTexts.add(normalized);
       createdActions.push(actionFromRow(actions.create({
         deadline: operation.deadline,
         description: operation.description,
@@ -223,6 +237,13 @@ export function applyOperations(
     }
 
     if (operation.type === "CREATE_DECISION") {
+      const normalized = normalizeText(operation.text);
+
+      if (existingDecisionTexts.has(normalized)) {
+        continue;
+      }
+
+      existingDecisionTexts.add(normalized);
       createdDecisions.push(decisionFromRow(decisions.create({
         evidence: evidenceForOperation(operation, segments),
         meetingId,
@@ -236,6 +257,13 @@ export function applyOperations(
     }
 
     if (operation.type === "CREATE_QUESTION") {
+      const normalized = normalizeText(operation.text);
+
+      if (existingQuestionTexts.has(normalized)) {
+        continue;
+      }
+
+      existingQuestionTexts.add(normalized);
       createdQuestions.push(questionFromRow(questions.create({
         evidence: evidenceForOperation(operation, segments),
         meetingId,
