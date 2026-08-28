@@ -12,6 +12,8 @@
     "dev": "turbo run dev",
     "eval:live-core": "pnpm demo:live-meeting",
     "lint": "turbo run lint",
+    "postgres:down": "docker compose down",
+    "postgres:up": "docker compose up -d postgres",
     "smoke:meeting-window": "pnpm build && node --experimental-strip-types scripts/smoke-meeting-window.ts",
     "smoke:postgres-memory": "pnpm build && node --experimental-strip-types scripts/smoke-postgres-memory.ts",
     "test": "turbo run test",

@@ -47,11 +47,12 @@ to check which provider credentials are configured without printing secrets.
 
 ## Postgres Memory
 
-With a local pgvector database configured:
+Start the dedicated YoMeets pgvector database:
 
 ```bash
-export YOMEETS_POSTGRES_URL="postgres://USER:PASSWORD@127.0.0.1:5432/yomeets"
+pnpm postgres:up
+export YOMEETS_POSTGRES_URL="postgres://yomeets:yomeets_dev_password@127.0.0.1:55432/yomeets"
 pnpm smoke:postgres-memory
 ```
 
-Replace `USER:PASSWORD` with your local Postgres credentials. The smoke command creates the pgvector table, upserts local meeting memory, and searches it through Postgres.
+The smoke command creates the pgvector table, upserts local meeting memory, and searches it through Postgres.
