@@ -76,6 +76,7 @@ try {
   });
 
   assert.equal(records.some((record) => record.id === "seg_postgres"), true);
+  assert.equal(records.every((record) => record.meetingCreatedAt), true);
   assert.equal(postgres[0]?.meetingId, second.id);
   assert.equal(mine[0]?.kind, "action");
   assert.equal(answer.citations.some((record) => record.id === "seg_postgres"), true);

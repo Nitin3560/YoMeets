@@ -16,6 +16,7 @@ export type MeetingMemoryRecord = {
   id: string;
   kind: MeetingMemoryKind;
   meetingId: string;
+  meetingCreatedAt?: string;
   text: string;
   evidence: Evidence[];
 };
@@ -211,7 +212,11 @@ function evidenceFromJson(value: string) {
   return JSON.parse(value) as Evidence[];
 }
 
-function scoreRecord(queryTokens: Set<string>, record: MeetingMemoryRecord) {
+function wantsRecent(query: string) {
+  return /\b(latest|recent|current|now|currently|last|previous)\b/i.test(query);
+}
+
+function scoreRecord(query: string, queryTokens: Set<string>, record: MeetingMemoryRecord, newestMeetingAt?: number) {
   const recordTokens = tokenize(record.text);
   let score = 0;
 
@@ -225,19 +230,36 @@ function scoreRecord(queryTokens: Set<string>, record: MeetingMemoryRecord) {
     score += 0.2;
   }
 
+  if (record.kind === "action" && /\b(responsible|todo|task|action|due|owner|mine|my)\b/i.test(query)) {
+    score += 0.5;
+  }
+
+  if (wantsRecent(query) && record.meetingCreatedAt) {
+    const createdAt = Date.parse(record.meetingCreatedAt);
+
+    if (createdAt === newestMeetingAt) {
+      score += 0.75;
+    }
+  }
+
   return score;
 }
 
 export function loadMeetingMemory(storage: Storage, meetingId?: string): MeetingMemoryRecord[] {
-  const meetingIds = meetingId ? [meetingId] : new MeetingRepository(storage).listAll().map((meeting) => meeting.id);
+  const meetingRows = new MeetingRepository(storage).listAll();
+  const meetingById = new Map(meetingRows.map((meeting) => [meeting.id, meeting]));
+  const meetingIds = meetingId ? [meetingId] : meetingRows.map((meeting) => meeting.id);
   const records: MeetingMemoryRecord[] = [];
 
   for (const id of meetingIds) {
+    const meetingCreatedAt = meetingById.get(id)?.createdAt;
+
     records.push(...new CanonicalMeetingActionRepository(storage).listForMeeting(id).map((action) => ({
       evidence: evidenceFromJson(action.evidenceJson),
       id: action.id,
       kind: "action" as const,
       meetingId: id,
+      meetingCreatedAt,
       text: `${action.description} ${action.deadline ?? ""} ${action.status}`
     })));
     records.push(...new MeetingDecisionRepository(storage).listForMeeting(id).map((decision) => ({
@@ -245,6 +267,7 @@ export function loadMeetingMemory(storage: Storage, meetingId?: string): Meeting
       id: decision.id,
       kind: "decision" as const,
       meetingId: id,
+      meetingCreatedAt,
       text: decision.text
     })));
     records.push(...new MeetingQuestionRepository(storage).listForMeeting(id).map((question) => ({
@@ -252,6 +275,7 @@ export function loadMeetingMemory(storage: Storage, meetingId?: string): Meeting
       id: question.id,
       kind: "question" as const,
       meetingId: id,
+      meetingCreatedAt,
       text: `${question.text} ${question.status}`
     })));
     records.push(...new TranscriptSegmentRepository(storage).listForMeeting(id).map((segment) => ({
@@ -265,6 +289,7 @@ export function loadMeetingMemory(storage: Storage, meetingId?: string): Meeting
       id: segment.id,
       kind: "transcript" as const,
       meetingId: id,
+      meetingCreatedAt,
       text: segment.text
     })));
   }
@@ -274,11 +299,12 @@ export function loadMeetingMemory(storage: Storage, meetingId?: string): Meeting
 
 export function searchMeetingMemory(query: string, records: MeetingMemoryRecord[], limit = 5) {
   const queryTokens = tokenize(query);
+  const newestMeetingAt = Math.max(...records.map((record) => record.meetingCreatedAt ? Date.parse(record.meetingCreatedAt) : 0));
 
   return records
     .map((record) => ({
       record,
-      score: scoreRecord(queryTokens, record)
+      score: scoreRecord(query, queryTokens, record, newestMeetingAt)
     }))
     .filter((item) => item.score > 0)
     .sort((first, second) => second.score - first.score)
