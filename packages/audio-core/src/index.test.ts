@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import {
   AudioProviderNotConfiguredError,
   FixtureAudioPipeline,
+  LiveTranscriptLinePipeline,
   NotConfiguredAudioRecorder,
   ProviderBackedLiveAudioPipeline,
+  parseLiveTranscriptLine,
   type AudioChunk,
   type SttSegment
 } from "./index.js";
@@ -86,3 +88,25 @@ await assert.rejects(async () => {
   for await (const _segment of new NotConfiguredAudioRecorder("macOS recorder").start("meeting_missing")) {
   }
 }, AudioProviderNotConfiguredError);
+
+assert.deepEqual(parseLiveTranscriptLine("01:04 S2: Yeah, I'll fix it tomorrow."), {
+  speakerLabel: "S2",
+  startMs: 64_000,
+  text: "Yeah, I'll fix it tomorrow."
+});
+assert.equal(parseLiveTranscriptLine("this is not a caption line"), undefined);
+
+const liveTranscript = new LiveTranscriptLinePipeline([
+  "00:01 S1: Sarah, can you check the auth timeout?",
+  "ignored",
+  "00:04 S2: Yeah, I'll fix it tomorrow."
+]);
+const transcriptSegments = [];
+
+for await (const segment of liveTranscript.stream("meeting_caption_test")) {
+  transcriptSegments.push(segment);
+}
+
+assert.equal(transcriptSegments.length, 2);
+assert.equal(transcriptSegments[0]?.endMs, 4000);
+assert.equal(transcriptSegments[1]?.source, "live_transcript");

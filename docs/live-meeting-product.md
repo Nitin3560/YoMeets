@@ -20,6 +20,12 @@ pnpm demo:live-meeting
 Runs the local fixture demo with no external side effects.
 
 ```bash
+pnpm demo:transcript-lines
+```
+
+Runs caption-style lines through the same live meeting core. You can pass a file where each line looks like `00:12 S2: I'll fix it tomorrow`.
+
+```bash
 GEMINI_API_KEY=... pnpm smoke:meeting-window
 ```
 
