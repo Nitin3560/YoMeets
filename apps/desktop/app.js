@@ -1,5 +1,6 @@
 const api = "http://127.0.0.1:47821";
 let currentState;
+let pollingTimer;
 
 function text(selector, value) {
   const element = document.querySelector(selector);
@@ -86,19 +87,23 @@ async function loadLatestMeeting() {
       throw new Error(`Local API returned ${response.status}`);
     }
 
-    currentState = await response.json();
-    const openQuestions = currentState.questions.filter((question) => question.status === "open");
-
-    text("[data-api-status]", "Local API connected");
-    text("[data-meeting-title]", currentState.meeting?.title ?? "Latest Meeting");
-    text("[data-action-count]", String(currentState.actions.length));
-    text("[data-decision-count]", String(currentState.decisions.length));
-    text("[data-question-count]", String(openQuestions.length));
-    renderTranscript(currentState.transcriptSegments);
-    renderActions(currentState.actions);
+    renderState(await response.json(), "Local API connected");
   } catch (_error) {
     text("[data-api-status]", "Local API offline");
   }
+}
+
+function renderState(state, statusText) {
+  currentState = state;
+  const openQuestions = currentState.questions.filter((question) => question.status === "open");
+
+  text("[data-api-status]", statusText);
+  text("[data-meeting-title]", currentState.meeting?.title ?? "Latest Meeting");
+  text("[data-action-count]", String(currentState.actions.length));
+  text("[data-decision-count]", String(currentState.decisions.length));
+  text("[data-question-count]", String(openQuestions.length));
+  renderTranscript(currentState.transcriptSegments);
+  renderActions(currentState.actions);
 }
 
 function likelyParticipantForSpeaker(speakerClusterId) {
@@ -172,5 +177,35 @@ document.addEventListener("click", async (event) => {
   }
 });
 
-loadLatestMeeting();
-setInterval(loadLatestMeeting, 3000);
+function startPolling() {
+  if (pollingTimer) {
+    return;
+  }
+
+  loadLatestMeeting();
+  pollingTimer = setInterval(loadLatestMeeting, 3000);
+}
+
+function startLiveStream() {
+  if (!("EventSource" in window)) {
+    startPolling();
+    return;
+  }
+
+  const events = new EventSource(`${api}/v1/meetings/latest/events`);
+
+  events.addEventListener("meeting_state", (event) => {
+    if (pollingTimer) {
+      clearInterval(pollingTimer);
+      pollingTimer = undefined;
+    }
+
+    renderState(JSON.parse(event.data), "Live API connected");
+  });
+  events.addEventListener("error", () => {
+    events.close();
+    startPolling();
+  });
+}
+
+startLiveStream();

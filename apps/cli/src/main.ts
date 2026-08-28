@@ -159,6 +159,11 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     return;
   }
 
+  if (method === "GET" && url.pathname === "/v1/meetings/latest/events") {
+    streamLatestMeetingState(request, response);
+    return;
+  }
+
   const meetingMatch = url.pathname.match(/^\/v1\/meetings\/([^/]+)$/);
 
   if (method === "GET" && meetingMatch?.[1]) {
@@ -174,6 +179,13 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
       storage.sqlite.close();
     }
 
+    return;
+  }
+
+  const meetingEventsMatch = url.pathname.match(/^\/v1\/meetings\/([^/]+)\/events$/);
+
+  if (method === "GET" && meetingEventsMatch?.[1]) {
+    streamMeetingState(request, response, meetingEventsMatch[1]);
     return;
   }
 
@@ -264,6 +276,68 @@ function meetingState(storage: ReturnType<typeof openStorage>, meetingId: string
     speakerClusters: new SpeakerClusterRepository(storage).listForMeeting(meetingId),
     transcriptSegments: new TranscriptSegmentRepository(storage).listForMeeting(meetingId)
   };
+}
+
+function writeSse(response: ServerResponse, event: string, data: unknown) {
+  response.write(`event: ${event}\n`);
+  response.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function streamLatestMeetingState(request: IncomingMessage, response: ServerResponse) {
+  const storage = openStorage();
+
+  runMigrations(storage);
+
+  try {
+    const meeting = new MeetingRepository(storage).listAll()[0];
+
+    if (!meeting) {
+      sendJson(response, 404, { error: "no meetings found" });
+      return;
+    }
+
+    storage.sqlite.close();
+    streamMeetingState(request, response, meeting.id);
+  } catch (error) {
+    storage.sqlite.close();
+    throw error;
+  }
+}
+
+function streamMeetingState(request: IncomingMessage, response: ServerResponse, meetingId: string) {
+  response.writeHead(200, {
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-cache, no-transform",
+    "Connection": "keep-alive",
+    "Content-Type": "text/event-stream"
+  });
+
+  const send = () => {
+    const storage = openStorage();
+
+    runMigrations(storage);
+
+    try {
+      const meeting = new MeetingRepository(storage).findById(meetingId);
+
+      if (!meeting) {
+        writeSse(response, "error", { error: "meeting not found" });
+        return;
+      }
+
+      writeSse(response, "meeting_state", meetingState(storage, meetingId));
+    } finally {
+      storage.sqlite.close();
+    }
+  };
+
+  send();
+  const timer = setInterval(send, 1000);
+
+  request.on("close", () => {
+    clearInterval(timer);
+    response.end();
+  });
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
