@@ -508,13 +508,16 @@ The system should be evaluated across several independent dimensions:
 
 ## Documentation
 
-- [Architecture](https://chatgpt.com/c/docs/architecture.md)
-- [Engineering Design Decisions](https://chatgpt.com/c/docs/design-decisions.md)
-- [Live Meeting Product](https://chatgpt.com/c/docs/live-meeting-product.md)
-- [Local Live Demo](https://chatgpt.com/c/docs/local-live-demo.md)
-- [API Integrations](https://chatgpt.com/c/docs/api-integrations.md)
-- [Benchmark Results](https://chatgpt.com/c/docs/benchmark-results.md)
-- [Product Direction](https://chatgpt.com/c/docs/product-direction.md)
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Engineering Design Decisions](docs/design-decisions.md)
+- [Live Meeting Pipeline](docs/live-meeting-pipeline.md)
+- [Meeting Memory & RAG](docs/meeting-memory.md)
+- [Agent Execution & Safety](docs/execution-safety.md)
+- [Integrations](docs/integrations.md)
+- [Evaluation & Benchmarks](docs/evaluation.md)
+- [Quickstart](docs/quickstart.md)
 
 ---
 
