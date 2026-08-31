@@ -93,6 +93,8 @@ The task and agent layers determine what should happen next and whether it is sa
 
 External integrations perform and verify approved actions.
 
+See the full architecture write-up in [docs/architecture.md](docs/architecture.md).
+
 ---
 
 ## Why YoMeets?
@@ -561,16 +563,19 @@ The system should be evaluated across several independent dimensions:
 
 ## Documentation
 
-## Documentation
-
+- [Quickstart](docs/quickstart.md)
 - [Architecture](docs/architecture.md)
 - [Engineering Design Decisions](docs/design-decisions.md)
 - [Live Meeting Pipeline](docs/live-meeting-pipeline.md)
-- [Meeting Memory & RAG](docs/meeting-memory.md)
-- [Agent Execution & Safety](docs/execution-safety.md)
+- [Meeting Memory](docs/meeting-memory.md)
+- [Agent Execution and Safety](docs/agent-execution-safety.md)
 - [Integrations](docs/integrations.md)
-- [Evaluation & Benchmarks](docs/evaluation.md)
-- [Quickstart](docs/quickstart.md)
+- [Live Meeting Product](docs/live-meeting-product.md)
+- [Local Live Demo](docs/local-live-demo.md)
+- [API Integrations](docs/api-integrations.md)
+- [Evaluation and Benchmarks](docs/evaluation-and-benchmarks.md)
+- [Benchmark Results](docs/benchmark-results.md)
+- [Product Direction](docs/product-direction.md)
 
 ---
 
