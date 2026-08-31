@@ -32,68 +32,7 @@ Will be updated soon !!!!
 
 ## Architecture
 
-```text
-┌──────────────────────────────────────────────┐
-│              Live Meeting Source             │
-│        Zoom / Google Meet / Discord / local   │
-└──────────────────────┬───────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────┐
-│        Audio Capture and Transcription        │
-│ macOS ffmpeg/AVFoundation → Deepgram STT      │
-│ Deepgram speaker labels / diarization         │
-└──────────────────────┬───────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────┐
-│        Live Meeting Intelligence Core         │
-│ Gemini window processor emits typed ops       │
-│ CREATE_ACTION / CREATE_DECISION / QUESTION    │
-└──────────────────────┬───────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────┐
-│           Canonical Meeting State             │
-│ transcript · speakers · actions · decisions   │
-│ questions · evidence timestamps               │
-└───────────────┬──────────────────┬───────────┘
-                ▼                  ▼
-┌────────────────────────┐  ┌────────────────────────┐
-│ Speaker Resolver       │  │ Evidence System         │
-│ unknown → likely →     │  │ recorded WAV clips      │
-│ confirmed identity     │  │ clipStart/clipEnd       │
-└───────────────┬────────┘  └────────────┬───────────┘
-                ▼                        ▼
-┌──────────────────────────────────────────────┐
-│        Memory System + Local API / SSE        │
-│ SQLite state · Postgres/pgvector · live stream│
-└──────────────────────┬───────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────┐
-│          Desktop Product UI + Overlay         │
-│ Tauri shell · live dashboard · play/approve   │
-└──────────────────────┬───────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────┐
-│        Approval → Execution → Verification    │
-│ GitHub issues · Calendar events · Gmail drafts│
-└──────────────────────┬───────────────────────┘
-                       ▼
-┌──────────────────────────────────────────────┐
-│           Ask YoMeets / Accountability        │
-│ cross-meeting memory, citations, open items   │
-└──────────────────────────────────────────────┘
-```
-
-YoMeets separates **conversation understanding**, **meeting memory**, **action planning**, and **external execution** into independent components.
-
-The meeting intelligence layer understands what happened in the conversation.
-
-The memory layer preserves what the team discussed across meetings.
-
-The task and agent layers determine what should happen next and whether it is safe to execute.
-
-External integrations perform and verify approved actions.
-
-See the full architecture write-up in [docs/architecture.md](docs/architecture.md).
+![YoMeets Architecture](docs/assets/yomeets-architecture.png)
 
 ---
 
