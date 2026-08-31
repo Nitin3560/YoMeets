@@ -2,7 +2,6 @@
 
 > **Real-time AI meeting assistant that understands who said what, tracks decisions and commitments as they happen, builds persistent meeting memory, and turns approved follow-ups into verified actions across GitHub, Google Calendar, and Gmail.**
 
-[badges here]
 
 ---
 
