@@ -12,7 +12,7 @@
 <b>End-to-end meeting demonstration showing live transcription, speaker-aware meeting intelligence, action detection, approval-controlled execution, and post-meeting retrieval.</b>
 </p>
 
-[demo gif/video]
+Will be updated soon !!!!
 
 ---
 
