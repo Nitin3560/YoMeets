@@ -32,7 +32,56 @@ Will be updated soon !!!!
 
 ## Architecture
 
-[architecture diagram]
+```text
+┌──────────────────────────────────────────────┐
+│              Live Meeting Source             │
+│        Zoom / Google Meet / Discord / local   │
+└──────────────────────┬───────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────┐
+│        Audio Capture and Transcription        │
+│ macOS ffmpeg/AVFoundation → Deepgram STT      │
+│ Deepgram speaker labels / diarization         │
+└──────────────────────┬───────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────┐
+│        Live Meeting Intelligence Core         │
+│ Gemini window processor emits typed ops       │
+│ CREATE_ACTION / CREATE_DECISION / QUESTION    │
+└──────────────────────┬───────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────┐
+│           Canonical Meeting State             │
+│ transcript · speakers · actions · decisions   │
+│ questions · evidence timestamps               │
+└───────────────┬──────────────────┬───────────┘
+                ▼                  ▼
+┌────────────────────────┐  ┌────────────────────────┐
+│ Speaker Resolver       │  │ Evidence System         │
+│ unknown → likely →     │  │ recorded WAV clips      │
+│ confirmed identity     │  │ clipStart/clipEnd       │
+└───────────────┬────────┘  └────────────┬───────────┘
+                ▼                        ▼
+┌──────────────────────────────────────────────┐
+│        Memory System + Local API / SSE        │
+│ SQLite state · Postgres/pgvector · live stream│
+└──────────────────────┬───────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────┐
+│          Desktop Product UI + Overlay         │
+│ Tauri shell · live dashboard · play/approve   │
+└──────────────────────┬───────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────┐
+│        Approval → Execution → Verification    │
+│ GitHub issues · Calendar events · Gmail drafts│
+└──────────────────────┬───────────────────────┘
+                       ▼
+┌──────────────────────────────────────────────┐
+│           Ask YoMeets / Accountability        │
+│ cross-meeting memory, citations, open items   │
+└──────────────────────────────────────────────┘
+```
 
 YoMeets separates **conversation understanding**, **meeting memory**, **action planning**, and **external execution** into independent components.
 
@@ -490,7 +539,11 @@ The system should be evaluated across several independent dimensions:
 | Actions / decisions / questions          | ✅     |
 | Speaker cluster model                    | ✅     |
 | Speaker resolution framework             | ✅     |
+| macOS ffmpeg audio recorder boundary     | ✅     |
 | Deepgram streaming STT adapter           | ✅     |
+| Deepgram speaker-label diarization path  | ✅     |
+| Tauri desktop shell and overlay scaffold | ✅     |
+| Playable evidence audio path             | ✅     |
 | Approval-controlled execution            | ✅     |
 | GitHub integration                       | ✅     |
 | Google Calendar integration              | ✅     |
@@ -499,8 +552,8 @@ The system should be evaluated across several independent dimensions:
 | PostgreSQL + pgvector memory             | ✅     |
 | Ask YoMeets retrieval path                | ✅     |
 | Live dashboard state                     | ✅     |
-| Native microphone/system-audio capture   | 🚧     |
-| Production speaker diarization adapter   | 🚧     |
+| Real macOS meeting capture verification  | 🚧     |
+| BlackHole/system-audio device setup      | 🚧     |
 | Production OAuth setup                   | 🚧     |
 | Real-world meeting benchmark             | 🚧     |
 
